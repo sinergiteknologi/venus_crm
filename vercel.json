@@ -1,5 +1,7 @@
 {
-  "buildCommand": "flutter build web --release --no-wasm-dry-run",
+  "framework": null,
+  "installCommand": "echo 'Skipping npm install for Flutter project'",
+  "buildCommand": "bash vercel_build.sh",
   "outputDirectory": "build/web",
   "rewrites": [
     {
