@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 import '../models/login.dart';
@@ -34,11 +35,15 @@ import '../envelopes/password_envelope.dart';
 import '../envelopes/master_data_envelope.dart';
 
 class VenusCRMService {
-  
-  final String urlVenusCRM =
-      "https://implement.sinergiteknologi.co.id/VenusCRMServices/mobileservices.asmx";
-  // final String urlVenusCRM =
-  //     "http://Production2.sinergiteknologi.co.id/VenusCRMServices/mobileservices.asmx";
+  static const String _apiUrl =
+      'https://implement.sinergiteknologi.co.id/VenusCRMServices/mobileservices.asmx';
+
+  String get _requestUrl {
+    if (kIsWeb) {
+      return Uri.base.resolve('api/proxy').toString();
+    }
+    return _apiUrl;
+  }
 
   // ── Authentication ──────────────────────────────────────────────────────────
 
@@ -321,7 +326,7 @@ class VenusCRMService {
 
   Future<http.Response> _postRequest(String xmlBody, String soapAction) async {
     return await http.post(
-      Uri.parse(urlVenusCRM),
+      Uri.parse(_requestUrl),
       headers: {
         "Content-Type": "text/xml; charset=utf-8",
         "SOAPAction": soapAction,
