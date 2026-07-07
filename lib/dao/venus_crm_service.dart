@@ -36,7 +36,7 @@ import '../envelopes/master_data_envelope.dart';
 class VenusCRMService {
   
   final String urlVenusCRM =
-      "http://implement.sinergiteknologi.co.id/VenusCRMServices/mobileservices.asmx";
+      "https://implement.sinergiteknologi.co.id/VenusCRMServices/mobileservices.asmx";
   // final String urlVenusCRM =
   //     "http://Production2.sinergiteknologi.co.id/VenusCRMServices/mobileservices.asmx";
 
