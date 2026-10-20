@@ -1,11 +1,11 @@
 {
-    "name": "venus_crm",
-    "short_name": "venus_crm",
+    "name": "Venus CRM",
+    "short_name": "Venus CRM",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Venus CRM - Manage your business smartly.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

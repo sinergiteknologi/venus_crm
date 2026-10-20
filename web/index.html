@@ -1,46 +1,175 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Venus CRM - Manage your business smartly.">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="venus_crm">
+  <meta name="apple-mobile-web-app-title" content="Venus CRM">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>venus_crm</title>
+  <title>Venus CRM</title>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    #pwa-install-banner,
+    #pwa-ios-banner {
+      position: fixed;
+      left: 16px;
+      right: 16px;
+      bottom: 16px;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.22);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    }
+    #pwa-install-banner[hidden],
+    #pwa-ios-banner[hidden] { display: none; }
+    #pwa-install-banner img,
+    #pwa-ios-banner img {
+      width: 48px;
+      height: 48px;
+      border-radius: 10px;
+      flex-shrink: 0;
+    }
+    .pwa-text { flex: 1; min-width: 0; }
+    .pwa-text strong { display: block; font-size: 15px; color: #111827; }
+    .pwa-text span { display: block; font-size: 12.5px; color: #6b7280; margin-top: 2px; line-height: 1.35; }
+    #pwa-install-btn {
+      background: #1e4ccb;
+      color: #ffffff;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 18px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    #pwa-install-btn:active { opacity: 0.85; }
+    .pwa-close {
+      background: transparent;
+      border: none;
+      color: #9ca3af;
+      font-size: 20px;
+      line-height: 1;
+      padding: 4px 6px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+  </style>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
+  <div id="pwa-install-banner" hidden>
+    <img src="icons/Icon-192.png" alt="Venus CRM">
+    <div class="pwa-text">
+      <strong>Install Venus CRM</strong>
+      <span>Pasang aplikasi di perangkat Anda untuk akses lebih cepat.</span>
+    </div>
+    <button id="pwa-install-btn" type="button">Install</button>
+    <button id="pwa-install-close" class="pwa-close" type="button" aria-label="Tutup">&times;</button>
+  </div>
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
+  <div id="pwa-ios-banner" hidden>
+    <img src="icons/Icon-192.png" alt="Venus CRM">
+    <div class="pwa-text">
+      <strong>Install Venus CRM</strong>
+      <span>Ketuk <b>Share</b> (ikon kotak dengan panah ke atas), lalu pilih <b>Add to Home Screen</b>.</span>
+    </div>
+    <button id="pwa-ios-close" class="pwa-close" type="button" aria-label="Tutup">&times;</button>
+  </div>
+
+  <script>
+    (function () {
+      var DISMISS_KEY = 'venus-pwa-install-dismissed';
+      var installBanner = document.getElementById('pwa-install-banner');
+      var iosBanner = document.getElementById('pwa-ios-banner');
+      var deferredPrompt = null;
+
+      function isInstalled() {
+        return window.matchMedia('(display-mode: standalone)').matches ||
+          window.navigator.standalone === true;
+      }
+
+      function wasDismissed() {
+        try { return localStorage.getItem(DISMISS_KEY) === '1'; } catch (e) { return false; }
+      }
+
+      function markDismissed() {
+        try { localStorage.setItem(DISMISS_KEY, '1'); } catch (e) {}
+      }
+
+      if (isInstalled()) return;
+
+      window.addEventListener('beforeinstallprompt', function (event) {
+        event.preventDefault();
+        deferredPrompt = event;
+        if (!wasDismissed()) {
+          installBanner.hidden = false;
+        }
+      });
+
+      window.addEventListener('appinstalled', function () {
+        deferredPrompt = null;
+        installBanner.hidden = true;
+        iosBanner.hidden = true;
+      });
+
+      document.getElementById('pwa-install-btn').addEventListener('click', async function () {
+        if (!deferredPrompt) {
+          installBanner.hidden = true;
+          return;
+        }
+        deferredPrompt.prompt();
+        try {
+          var choice = await deferredPrompt.userChoice;
+          if (choice && choice.outcome === 'accepted') {
+            installBanner.hidden = true;
+          } else {
+            markDismissed();
+            installBanner.hidden = true;
+          }
+        } catch (e) {
+          installBanner.hidden = true;
+        }
+        deferredPrompt = null;
+      });
+
+      document.getElementById('pwa-install-close').addEventListener('click', function () {
+        markDismissed();
+        installBanner.hidden = true;
+      });
+
+      document.getElementById('pwa-ios-close').addEventListener('click', function () {
+        markDismissed();
+        iosBanner.hidden = true;
+      });
+
+      var ua = window.navigator.userAgent || '';
+      var isIos = /iphone|ipad|ipod/i.test(ua) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      if (isIos && !wasDismissed()) {
+        window.addEventListener('load', function () {
+          setTimeout(function () { iosBanner.hidden = false; }, 1200);
+        });
+      }
+    })();
+  </script>
+
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
