@@ -39,6 +39,9 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
+# Backend services (not part of this repository)
+/services/
+
 # Android Studio will place build artifacts here
 /android/app/debug
 /android/app/profile
