@@ -31,6 +31,7 @@ import '../envelopes/find_envelope.dart';
 import '../envelopes/post_lead_envelope.dart';
 import '../envelopes/post_contact_envelope.dart';
 import '../envelopes/post_activity_envelope.dart';
+import '../envelopes/post_potential_envelope.dart';
 import '../envelopes/password_envelope.dart';
 import '../envelopes/master_data_envelope.dart';
 
@@ -49,23 +50,35 @@ class VenusCRMService {
 
   Future<Login?> getLogin(String sUser, String sPwd) async {
     final envelope = LoginDataEnvelope(sUser, sPwd);
-    final response =
-        await _postRequest(envelope.toXml(), "http://VenusCRM.org/GetLogin");
+    final response = await _postRequest(
+      envelope.toXml(),
+      "http://VenusCRM.org/GetLogin",
+    );
     if (response.statusCode == 200) {
       return _parseResponse<Login>(
-          response.body, 'Login', (xml) => Login.fromXml(xml));
+        response.body,
+        'Login',
+        (xml) => Login.fromXml(xml),
+      );
     }
     return null;
   }
 
   Future<UploadStatus?> uploadNewPassword(
-      String prmUser, String prmNewPassword) async {
+    String prmUser,
+    String prmNewPassword,
+  ) async {
     final envelope = PasswordEnvelope(prmUser, prmNewPassword);
     final response = await _postRequest(
-        envelope.toXml(), "http://VenusCRM.org/UploadNewPassword");
+      envelope.toXml(),
+      "http://VenusCRM.org/UploadNewPassword",
+    );
     if (response.statusCode == 200) {
-      return _parseResponse<UploadStatus>(response.body, 'UploadStatus',
-          (xml) => UploadStatus.fromXml(xml));
+      return _parseResponse<UploadStatus>(
+        response.body,
+        'UploadStatus',
+        (xml) => UploadStatus.fromXml(xml),
+      );
     }
     return null;
   }
@@ -73,19 +86,33 @@ class VenusCRMService {
   // ── Lead ────────────────────────────────────────────────────────────────────
 
   Future<Lead?> getLead(
-      String prmBusCode, String prmUserAuth, String prmLike) async {
+    String prmBusCode,
+    String prmUserAuth,
+    String prmLike,
+  ) async {
     final envelope = LeadEnvelope(prmBusCode, prmUserAuth, prmLike);
-    final response =
-        await _postRequest(envelope.toXml(), "http://VenusCRM.org/GetLead");
+    final response = await _postRequest(
+      envelope.toXml(),
+      "http://VenusCRM.org/GetLead",
+    );
     if (response.statusCode == 200) {
       return _parseResponse<Lead>(
-          response.body, 'DataLead', (xml) => Lead.fromXml(xml));
+        response.body,
+        'DataLead',
+        (xml) => Lead.fromXml(xml),
+      );
     }
     return null;
   }
 
-  Future<DataLead?> getDataLead(String prmBusCode, String prmUserAuth,
-      String prmType, String prmValue, String prmDate1, String prmDate2) async {
+  Future<DataLead?> getDataLead(
+    String prmBusCode,
+    String prmUserAuth,
+    String prmType,
+    String prmValue,
+    String prmDate1,
+    String prmDate2,
+  ) async {
     final envelope = FindEnvelope(
       methodName: 'GetFindDataLead',
       prmBusCode: prmBusCode,
@@ -96,53 +123,90 @@ class VenusCRMService {
       prmDate2: prmDate2,
     );
     final response = await _postRequest(
-        envelope.toXml(), "http://VenusCRM.org/GetFindDataLead");
+      envelope.toXml(),
+      "http://VenusCRM.org/GetFindDataLead",
+    );
     if (response.statusCode == 200) {
       return _parseResponse<DataLead>(
-          response.body, 'DataLead', (xml) => DataLead.fromXml(xml));
+        response.body,
+        'DataLead',
+        (xml) => DataLead.fromXml(xml),
+      );
     }
     return null;
   }
 
   Future<PostResponse?> postLead(PostLeadEnvelope envelope) async {
     final response = await _postRequest(
-        envelope.toXml(), "http://VenusCRM.org/PostDataLead");
+      envelope.toXml(),
+      "http://VenusCRM.org/PostDataLead",
+    );
     if (response.statusCode == 200) {
       return _parseResponse<PostResponse>(
-          response.body, 'Post', (xml) => PostResponse.fromXml(xml));
+        response.body,
+        'Post',
+        (xml) => PostResponse.fromXml(xml),
+      );
     }
     return null;
   }
 
   // ── Account & Contact ───────────────────────────────────────────────────────
 
-  Future<Account?> getAccount(String prmBusCode, String prmUserAuth,
-      String prmLike, String prmFromMenu) async {
-    final envelope =
-        AccountEnvelope(prmBusCode, prmUserAuth, prmLike, prmFromMenu);
+  Future<Account?> getAccount(
+    String prmBusCode,
+    String prmUserAuth,
+    String prmLike,
+    String prmFromMenu,
+  ) async {
+    final envelope = AccountEnvelope(
+      prmBusCode,
+      prmUserAuth,
+      prmLike,
+      prmFromMenu,
+    );
     final response = await _postRequest(
-        envelope.toXml(), "http://VenusCRM.org/GetDataAccount");
+      envelope.toXml(),
+      "http://VenusCRM.org/GetDataAccount",
+    );
     if (response.statusCode == 200) {
       return _parseResponse<Account>(
-          response.body, 'DataAccount', (xml) => Account.fromXml(xml));
+        response.body,
+        'DataAccount',
+        (xml) => Account.fromXml(xml),
+      );
     }
     return null;
   }
 
   Future<Contact?> getContact(
-      String prmBusCode, String prmUserAuth, String prmLike) async {
+    String prmBusCode,
+    String prmUserAuth,
+    String prmLike,
+  ) async {
     final envelope = ContactEnvelope(prmBusCode, prmUserAuth, prmLike);
     final response = await _postRequest(
-        envelope.toXml(), "http://VenusCRM.org/GetDataContact");
+      envelope.toXml(),
+      "http://VenusCRM.org/GetDataContact",
+    );
     if (response.statusCode == 200) {
       return _parseResponse<Contact>(
-          response.body, 'DataContact', (xml) => Contact.fromXml(xml));
+        response.body,
+        'DataContact',
+        (xml) => Contact.fromXml(xml),
+      );
     }
     return null;
   }
 
-  Future<DataContact?> getDataContact(String prmBusCode, String prmUserAuth,
-      String prmType, String prmValue, String prmDate1, String prmDate2) async {
+  Future<DataContact?> getDataContact(
+    String prmBusCode,
+    String prmUserAuth,
+    String prmType,
+    String prmValue,
+    String prmDate1,
+    String prmDate2,
+  ) async {
     final envelope = FindEnvelope(
       methodName: 'GetFindDataContact',
       prmBusCode: prmBusCode,
@@ -153,20 +217,30 @@ class VenusCRMService {
       prmDate2: prmDate2,
     );
     final response = await _postRequest(
-        envelope.toXml(), "http://VenusCRM.org/GetFindDataContact");
+      envelope.toXml(),
+      "http://VenusCRM.org/GetFindDataContact",
+    );
     if (response.statusCode == 200) {
       return _parseResponse<DataContact>(
-          response.body, 'DataContact', (xml) => DataContact.fromXml(xml));
+        response.body,
+        'DataContact',
+        (xml) => DataContact.fromXml(xml),
+      );
     }
     return null;
   }
 
   Future<PostResponse?> postContact(PostContactEnvelope envelope) async {
     final response = await _postRequest(
-        envelope.toXml(), "http://VenusCRM.org/PostDataContact");
+      envelope.toXml(),
+      "http://VenusCRM.org/PostDataContact",
+    );
     if (response.statusCode == 200) {
       return _parseResponse<PostResponse>(
-          response.body, 'Post', (xml) => PostResponse.fromXml(xml));
+        response.body,
+        'Post',
+        (xml) => PostResponse.fromXml(xml),
+      );
     }
     return null;
   }
@@ -174,20 +248,33 @@ class VenusCRMService {
   // ── Potential ───────────────────────────────────────────────────────────────
 
   Future<Potential?> getPotential(
-      String prmBusCode, String prmUserAuth, String prmLike) async {
+    String prmBusCode,
+    String prmUserAuth,
+    String prmLike,
+  ) async {
     final envelope = PotentialEnvelope(prmBusCode, prmUserAuth, prmLike);
     final response = await _postRequest(
-        envelope.toXml(), "http://VenusCRM.org/GetDataPotential");
+      envelope.toXml(),
+      "http://VenusCRM.org/GetDataPotential",
+    );
     if (response.statusCode == 200) {
       return _parseResponse<Potential>(
-          response.body, 'DataPotential', (xml) => Potential.fromXml(xml));
+        response.body,
+        'DataPotential',
+        (xml) => Potential.fromXml(xml),
+      );
     }
     return null;
   }
 
-  Future<DataPotential?> getDataPotential(String prmBusCode,
-      String prmUserAuth, String prmType, String prmValue,
-      String prmDate1, String prmDate2) async {
+  Future<DataPotential?> getDataPotential(
+    String prmBusCode,
+    String prmUserAuth,
+    String prmType,
+    String prmValue,
+    String prmDate1,
+    String prmDate2,
+  ) async {
     final envelope = FindEnvelope(
       methodName: 'GetFindDataPotential',
       prmBusCode: prmBusCode,
@@ -198,10 +285,30 @@ class VenusCRMService {
       prmDate2: prmDate2,
     );
     final response = await _postRequest(
-        envelope.toXml(), "http://VenusCRM.org/GetFindDataPotential");
+      envelope.toXml(),
+      "http://VenusCRM.org/GetFindDataPotential",
+    );
     if (response.statusCode == 200) {
-      return _parseResponse<DataPotential>(response.body, 'DataPotential',
-          (xml) => DataPotential.fromXml(xml));
+      return _parseResponse<DataPotential>(
+        response.body,
+        'DataPotential',
+        (xml) => DataPotential.fromXml(xml),
+      );
+    }
+    return null;
+  }
+
+  Future<PostResponse?> postPotential(PostPotentialEnvelope envelope) async {
+    final response = await _postRequest(
+      envelope.toXml(),
+      "http://VenusCRM.org/PostDataPotential",
+    );
+    if (response.statusCode == 200) {
+      return _parseResponse<PostResponse>(
+        response.body,
+        'Post',
+        (xml) => PostResponse.fromXml(xml),
+      );
     }
     return null;
   }
@@ -210,16 +317,27 @@ class VenusCRMService {
 
   Future<PostResponse?> postActivity(PostActivityEnvelope envelope) async {
     final response = await _postRequest(
-        envelope.toXml(), "http://VenusCRM.org/PostDataActivity");
+      envelope.toXml(),
+      "http://VenusCRM.org/PostDataActivity",
+    );
     if (response.statusCode == 200) {
       return _parseResponse<PostResponse>(
-          response.body, 'Post', (xml) => PostResponse.fromXml(xml));
+        response.body,
+        'Post',
+        (xml) => PostResponse.fromXml(xml),
+      );
     }
     return null;
   }
 
-  Future<DataActivity?> getDataActivity(String prmBusCode, String prmUserAuth,
-      String prmType, String prmValue, String prmDate1, String prmDate2) async {
+  Future<DataActivity?> getDataActivity(
+    String prmBusCode,
+    String prmUserAuth,
+    String prmType,
+    String prmValue,
+    String prmDate1,
+    String prmDate2,
+  ) async {
     final envelope = FindEnvelope(
       methodName: 'GetFindDataActivity',
       prmBusCode: prmBusCode,
@@ -230,10 +348,15 @@ class VenusCRMService {
       prmDate2: prmDate2,
     );
     final response = await _postRequest(
-        envelope.toXml(), "http://VenusCRM.org/GetFindDataActivity");
+      envelope.toXml(),
+      "http://VenusCRM.org/GetFindDataActivity",
+    );
     if (response.statusCode == 200) {
       return _parseResponse<DataActivity>(
-          response.body, 'DataActivity', (xml) => DataActivity.fromXml(xml));
+        response.body,
+        'DataActivity',
+        (xml) => DataActivity.fromXml(xml),
+      );
     }
     return null;
   }
@@ -242,67 +365,99 @@ class VenusCRMService {
 
   Future<Business?> getBusiness(String prmBusCode) async {
     return _fetchMaster<Business>(
-        'GetDataBusiness', 'DataBusiness', (xml) => Business.fromXml(xml),
-        params: {'prmBusCode': prmBusCode});
+      'GetDataBusiness',
+      'DataBusiness',
+      (xml) => Business.fromXml(xml),
+      params: {'prmBusCode': prmBusCode},
+    );
   }
 
   Future<Sales?> getSales(String prmBusCode, String prmUserAuth) async {
     return _fetchMaster<Sales>(
-        'GetDataSales', 'DataSales', (xml) => Sales.fromXml(xml),
-        params: {'prmBusCode': prmBusCode, 'prmUserAuth': prmUserAuth});
+      'GetDataSales',
+      'DataSales',
+      (xml) => Sales.fromXml(xml),
+      params: {'prmBusCode': prmBusCode, 'prmUserAuth': prmUserAuth},
+    );
   }
 
   Future<LeadSource?> getLeadSource(String prmBusCode) async {
     return _fetchMaster<LeadSource>(
-        'GetDataLeadSource', 'DataLeadSource', (xml) => LeadSource.fromXml(xml),
-        params: {'prmBusCode': prmBusCode});
+      'GetDataLeadSource',
+      'DataLeadSource',
+      (xml) => LeadSource.fromXml(xml),
+      params: {'prmBusCode': prmBusCode},
+    );
   }
 
   Future<LeadStatus?> getLeadStatus(String prmBusCode) async {
     return _fetchMaster<LeadStatus>(
-        'GetDataLeadStatus', 'DataLeadStatus', (xml) => LeadStatus.fromXml(xml),
-        params: {'prmBusCode': prmBusCode});
+      'GetDataLeadStatus',
+      'DataLeadStatus',
+      (xml) => LeadStatus.fromXml(xml),
+      params: {'prmBusCode': prmBusCode},
+    );
   }
 
   Future<ActivityType?> getActivityType(String prmBusCode) async {
     return _fetchMaster<ActivityType>(
-        'GetDataActivityType', 'DataActivityType', (xml) => ActivityType.fromXml(xml),
-        params: {'prmBusCode': prmBusCode});
+      'GetDataActivityType',
+      'DataActivityType',
+      (xml) => ActivityType.fromXml(xml),
+      params: {'prmBusCode': prmBusCode},
+    );
   }
 
   Future<LOB?> getLOB(String prmBusCode) async {
     return _fetchMaster<LOB>(
-        'GetDataLOB', 'DataLOB', (xml) => LOB.fromXml(xml),
-        params: {'prmBusCode': prmBusCode});
+      'GetDataLOB',
+      'DataLOB',
+      (xml) => LOB.fromXml(xml),
+      params: {'prmBusCode': prmBusCode},
+    );
   }
 
   Future<Stage?> getStage(String prmBusCode) async {
     return _fetchMaster<Stage>(
-        'GetDataStage', 'DataStage', (xml) => Stage.fromXml(xml),
-        params: {'prmBusCode': prmBusCode});
+      'GetDataStage',
+      'DataStage',
+      (xml) => Stage.fromXml(xml),
+      params: {'prmBusCode': prmBusCode},
+    );
   }
 
   Future<Position?> getPosition(String prmBusCode) async {
     return _fetchMaster<Position>(
-        'GetDataPosition', 'DataPosition', (xml) => Position.fromXml(xml),
-        params: {'prmBusCode': prmBusCode});
+      'GetDataPosition',
+      'DataPosition',
+      (xml) => Position.fromXml(xml),
+      params: {'prmBusCode': prmBusCode},
+    );
   }
 
   Future<MethodPotential?> getMethodPotential(String prmBusCode) async {
-    return _fetchMaster<MethodPotential>('GetDataMethodPotential',
-        'DataMethodPotential', (xml) => MethodPotential.fromXml(xml),
-        params: {'prmBusCode': prmBusCode});
+    return _fetchMaster<MethodPotential>(
+      'GetDataMethodPotential',
+      'DataMethodPotential',
+      (xml) => MethodPotential.fromXml(xml),
+      params: {'prmBusCode': prmBusCode},
+    );
   }
 
   // ── System ──────────────────────────────────────────────────────────────────
 
   Future<Versi?> getVersi() async {
-    final envelope = MasterDataEnvelope('GetVersi');
-    final response =
-        await _postRequest(envelope.toXml(), "http://VenusCRM.org/GetVersi");
+    final envelope = MasterDataEnvelope('Versi');
+    final response = await _postRequest(
+      envelope.toXml(),
+      "http://VenusCRM.org/Versi",
+    );
     if (response.statusCode == 200) {
       return _parseResponse<Versi>(
-          response.body, 'Versi', (xml) => Versi.fromXml(xml));
+        response.body,
+        'Versi',
+        (xml) => Versi.fromXml(xml),
+      );
     }
     return null;
   }
@@ -316,8 +471,10 @@ class VenusCRMService {
     Map<String, String> params = const {},
   }) async {
     final envelope = MasterDataEnvelope(method, parameters: params);
-    final response =
-        await _postRequest(envelope.toXml(), "http://VenusCRM.org/$method");
+    final response = await _postRequest(
+      envelope.toXml(),
+      "http://VenusCRM.org/$method",
+    );
     if (response.statusCode == 200) {
       return _parseResponse<T>(response.body, element, creator);
     }
@@ -335,8 +492,11 @@ class VenusCRMService {
     );
   }
 
-  T? _parseResponse<T>(String xmlString, String elementName,
-      T Function(Map<String, dynamic>) creator) {
+  T? _parseResponse<T>(
+    String xmlString,
+    String elementName,
+    T Function(Map<String, dynamic>) creator,
+  ) {
     final document = XmlDocument.parse(xmlString);
     final element = document.findAllElements(elementName).firstOrNull;
     if (element != null) {

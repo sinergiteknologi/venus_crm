@@ -17,8 +17,11 @@ class ContactEditData {
   final String mobile;
   final String fax;
   final String email;
+  final String homePhone;
+  final String website;
   final String birthDay;
   final String assistant;
+  final String assistantPhone;
   final String leadSource;
   final String position;
   final String description;
@@ -34,8 +37,11 @@ class ContactEditData {
     required this.mobile,
     required this.fax,
     required this.email,
+    this.homePhone = '',
+    this.website = '',
     required this.birthDay,
     required this.assistant,
+    this.assistantPhone = '',
     required this.leadSource,
     required this.position,
     required this.description,
@@ -46,8 +52,9 @@ class ContactEditData {
 class ContactPage extends StatefulWidget {
   final ContactEditData? editData;
   final VoidCallback? onBack;
+  final VoidCallback? onCompleted;
 
-  const ContactPage({super.key, this.editData, this.onBack});
+  const ContactPage({super.key, this.editData, this.onBack, this.onCompleted});
 
   @override
   State<ContactPage> createState() => _ContactPageState();
@@ -61,6 +68,7 @@ class _ContactPageState extends State<ContactPage> {
   bool _isLoading = false;
   bool _isSuspend = false;
   bool _masterDataReady = false;
+  bool _isEditing = false;
 
   String? _busCode;
   String? _ownerUser;
@@ -92,6 +100,7 @@ class _ContactPageState extends State<ContactPage> {
     super.initState();
     _contactId = widget.editData?.contactId ?? '';
     _isSuspend = widget.editData?.isSuspend ?? false;
+    _isEditing = widget.editData != null;
     _loadMasterData();
   }
 
@@ -99,33 +108,30 @@ class _ContactPageState extends State<ContactPage> {
     setState(() => _isLoading = true);
     try {
       await _session.load();
-      _busCode = _session.busCode;
-
-      final bus = _busCode ?? '';
-
-      final businessResult = await _crmService.getBusiness(bus);
-      final leadSourceResult = await _crmService.getLeadSource(bus);
+      final businessResult = await _crmService.getBusiness(_session.busCode);
+      final businesses = PipeDataParser.parseCodeName(
+        businessResult?.code,
+        businessResult?.name,
+      );
+      final editBusiness = widget.editData == null
+          ? null
+          : _codeByName(businesses, widget.editData!.busName);
+      final sessionBusiness =
+          businesses.any((business) => business.code == _session.busCode)
+          ? _session.busCode
+          : null;
 
       if (mounted) {
         setState(() {
-          _businesses = PipeDataParser.parseCodeName(
-            businessResult?.code,
-            businessResult?.name,
-          );
-          _leadSources = PipeDataParser.withEmptyOption(
-            PipeDataParser.parseCodeName(
-              leadSourceResult?.code,
-              leadSourceResult?.name,
-            ),
-          );
-
-          if (_busCode == null && _businesses.isNotEmpty) {
-            _busCode = _businesses.first.code;
-          }
+          _businesses = businesses;
+          _busCode =
+              editBusiness ??
+              sessionBusiness ??
+              (businesses.isNotEmpty ? businesses.first.code : null);
         });
       }
 
-      await _loadSalesForBusiness(setDefaultOwner: widget.editData == null);
+      await _loadDependentData(setDefaultOwner: widget.editData == null);
 
       if (mounted && widget.editData != null) {
         await _applyEditData(widget.editData!);
@@ -144,10 +150,12 @@ class _ContactPageState extends State<ContactPage> {
     }
   }
 
-  Future<void> _loadSalesForBusiness({bool setDefaultOwner = false}) async {
-    if (_busCode == null || _busCode!.isEmpty) return;
+  Future<void> _loadDependentData({bool setDefaultOwner = false}) async {
+    final busCode = _busCode;
+    if (busCode == null || busCode.isEmpty) return;
 
-    final salesResult = await _crmService.getSales(_busCode!, _session.userAuth);
+    final salesResult = await _crmService.getSales(busCode, _session.userAuth);
+    final leadSourceResult = await _crmService.getLeadSource(busCode);
     final owners = PipeDataParser.parseSalesOwners(
       salesResult?.pref1,
       salesResult?.pref2,
@@ -159,6 +167,12 @@ class _ContactPageState extends State<ContactPage> {
     setState(() {
       _allSales = owners;
       _sales = owners;
+      _leadSources = PipeDataParser.withEmptyOption(
+        PipeDataParser.parseCodeName(
+          leadSourceResult?.code,
+          leadSourceResult?.name,
+        ),
+      );
       if (setDefaultOwner) {
         _setDefaultOwner(owners);
       } else if (_ownerUser != null &&
@@ -206,9 +220,9 @@ class _ContactPageState extends State<ContactPage> {
     final filtered = lower.isEmpty
         ? _allSales
         : _allSales
-            .where((owner) => owner.name.toLowerCase().contains(lower))
-            .take(5)
-            .toList();
+              .where((owner) => owner.name.toLowerCase().contains(lower))
+              .take(5)
+              .toList();
 
     if (mounted) setState(() => _sales = filtered);
     return filtered;
@@ -228,7 +242,6 @@ class _ContactPageState extends State<ContactPage> {
 
     setState(() {
       _contactId = data.contactId;
-      _busCode = _codeByName(_businesses, data.busName) ?? _busCode;
       _accountCode = _codeByName(_accounts, data.account);
       _ownerUser = _codeByName(_allSales, data.sales);
       _leadSourceCode = _codeByName(_leadSources, data.leadSource);
@@ -237,12 +250,91 @@ class _ContactPageState extends State<ContactPage> {
       _mobileCtrl.text = data.mobile;
       _faxCtrl.text = data.fax;
       _emailCtrl.text = data.email;
+      _homeCtrl.text = data.homePhone;
+      _websiteCtrl.text = data.website;
       _dobCtrl.text = data.birthDay;
       _assistantCtrl.text = data.assistant;
+      _assistantPhoneCtrl.text = data.assistantPhone;
       _positionCtrl.text = data.position;
       _descCtrl.text = data.description;
       _isSuspend = data.isSuspend;
     });
+  }
+
+  Future<void> _changeBusiness(String? value) async {
+    setState(() {
+      _isLoading = true;
+      _busCode = value;
+      _accountCode = null;
+      _accounts = [];
+      _ownerUser = null;
+      _leadSourceCode = null;
+      _allSales = [];
+      _sales = [];
+      _leadSources = [];
+    });
+
+    try {
+      await _loadDependentData(setDefaultOwner: true);
+    } catch (e) {
+      if (mounted) {
+        showCrmSnackBar(context, 'Failed to load data: $e', isError: true);
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _clearForm() async {
+    FocusScope.of(context).unfocus();
+    final sessionBusiness =
+        _businesses.any((business) => business.code == _session.busCode)
+        ? _session.busCode
+        : null;
+
+    setState(() {
+      _isLoading = true;
+      _isEditing = false;
+      _contactId = '';
+      _isSuspend = false;
+      _busCode =
+          sessionBusiness ??
+          (_businesses.isNotEmpty ? _businesses.first.code : null);
+      _accountCode = null;
+      _accounts = [];
+      _ownerUser = null;
+      _leadSourceCode = null;
+      _allSales = [];
+      _sales = [];
+      _leadSources = [];
+      for (final controller in [
+        _picNameCtrl,
+        _phoneCtrl,
+        _mobileCtrl,
+        _faxCtrl,
+        _emailCtrl,
+        _homeCtrl,
+        _websiteCtrl,
+        _dobCtrl,
+        _assistantCtrl,
+        _assistantPhoneCtrl,
+        _positionCtrl,
+        _descCtrl,
+      ]) {
+        controller.clear();
+      }
+      _formKey.currentState?.reset();
+    });
+
+    try {
+      await _loadDependentData(setDefaultOwner: true);
+    } catch (e) {
+      if (mounted) {
+        showCrmSnackBar(context, 'Failed to load data: $e', isError: true);
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _selectDate() async {
@@ -325,7 +417,9 @@ class _ContactPageState extends State<ContactPage> {
       return false;
     }
 
-    final validAccount = _accounts.any((account) => account.code == _accountCode);
+    final validAccount = _accounts.any(
+      (account) => account.code == _accountCode,
+    );
     if (!validAccount) {
       showCrmSnackBar(
         context,
@@ -380,7 +474,7 @@ class _ContactPageState extends State<ContactPage> {
       if (mounted) {
         if (result?.status == true) {
           showCrmSnackBar(context, 'Data Successfully Added');
-          widget.onBack?.call();
+          widget.onCompleted?.call();
         } else {
           showCrmSnackBar(context, 'Failed to save the data', isError: true);
         }
@@ -433,15 +527,7 @@ class _ContactPageState extends State<ContactPage> {
                         label: "Business",
                         items: _businesses,
                         value: _busCode,
-                        onChanged: (v) async {
-                          setState(() {
-                            _busCode = v;
-                            _accountCode = null;
-                            _accounts = [];
-                            _ownerUser = null;
-                          });
-                          await _loadSalesForBusiness(setDefaultOwner: true);
-                        },
+                        onChanged: _changeBusiness,
                       ),
                       CrmDropdownField(
                         label: "Lead Source",
@@ -588,7 +674,6 @@ class _ContactPageState extends State<ContactPage> {
   }
 
   Widget _buildHeader() {
-    final isEdit = widget.editData != null;
     return Row(
       children: [
         Container(
@@ -604,11 +689,13 @@ class _ContactPageState extends State<ContactPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              isEdit ? "Edit Contact" : "Create New Contact",
+              _isEditing ? "Edit Contact" : "Create New Contact",
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             Text(
-              isEdit ? "Update contact details below" : "Manage your relationship",
+              _isEditing
+                  ? "Update contact details below"
+                  : "Manage your relationship",
               style: const TextStyle(color: Colors.grey),
             ),
           ],
@@ -644,7 +731,10 @@ class _ContactPageState extends State<ContactPage> {
               const SizedBox(width: 8),
               Text(
                 title,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -674,6 +764,22 @@ class _ContactPageState extends State<ContactPage> {
                 color: Colors.redAccent,
                 fontWeight: FontWeight.bold,
               ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: OutlinedButton(
+            onPressed: _clearForm,
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              "Clear",
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
         ),

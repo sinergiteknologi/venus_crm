@@ -9,8 +9,44 @@ import '../../../../shared/utils/pipe_data_parser.dart';
 import '../../../../shared/widgets/crm_form_widgets.dart';
 import '../../../../shared/widgets/loading_overlay.dart';
 
+class ActivityEditData {
+  final String taskId;
+  final String type;
+  final String linkedName;
+  final String linkedSubName;
+  final String subject;
+  final String date;
+  final String status;
+  final String priority;
+  final String description;
+  final String businessName;
+  final String sales;
+  final String activityTypeName;
+  final String coordinate;
+
+  const ActivityEditData({
+    required this.taskId,
+    required this.type,
+    required this.linkedName,
+    required this.linkedSubName,
+    required this.subject,
+    required this.date,
+    required this.status,
+    required this.priority,
+    required this.description,
+    required this.businessName,
+    required this.sales,
+    required this.activityTypeName,
+    required this.coordinate,
+  });
+}
+
 class ActivityPage extends StatefulWidget {
-  const ActivityPage({super.key});
+  final ActivityEditData? editData;
+  final VoidCallback? onBack;
+  final VoidCallback? onCompleted;
+
+  const ActivityPage({super.key, this.editData, this.onBack, this.onCompleted});
 
   @override
   State<ActivityPage> createState() => _ActivityPageState();
@@ -22,9 +58,9 @@ class _ActivityPageState extends State<ActivityPage> {
   final _formKey = GlobalKey<FormState>();
 
   bool _isLoading = false;
-  String _taskId = "0";
+  int _linkedRequestId = 0;
+  String _taskId = '0';
 
-  // State Variables
   String? _busCode;
   String? _actSource = 'Lead';
   String? _actTypeCode;
@@ -32,13 +68,11 @@ class _ActivityPageState extends State<ActivityPage> {
   String? _priority = 'Medium';
   String? _linkedId;
 
-  // Master Data & Flags
   List<DropdownOption> _businesses = [];
   List<DropdownOption> _activityTypes = [];
   List<DropdownOption> _linkedEntities = [];
-  Map<String, bool> _locationRequiredMap = {}; // Maps ActTypeCode to IsLocationRequired
+  Map<String, bool> _locationRequiredMap = {};
 
-  // Controllers
   final _actDateCtrl = TextEditingController();
   final _locationCtrl = TextEditingController();
   final _subjectCtrl = TextEditingController();
@@ -52,133 +86,355 @@ class _ActivityPageState extends State<ActivityPage> {
   @override
   void initState() {
     super.initState();
-    _loadMasterData();
     _initDateTime();
+    _loadMasterData();
   }
 
   void _initDateTime() {
     final now = DateTime.now();
-    _actDateCtrl.text = "${now.month}/${now.day}/${now.year} ${now.hour}:${now.minute}:00";
+    _actDateCtrl.text =
+        '${now.month}/${now.day}/${now.year} ${now.hour}:${now.minute}:00';
   }
 
   Future<void> _loadMasterData() async {
     setState(() => _isLoading = true);
     try {
       await _session.load();
-      _busCode = _session.busCode;
-      
-      final bus = _busCode ?? '';
-      final businessResult = await _crmService.getBusiness(bus);
-      final actTypesRes = await _crmService.getActivityType(bus);
-      
-      if (mounted) {
-        setState(() {
-          _businesses = PipeDataParser.parseCodeName(businessResult?.code, businessResult?.name);
-          _activityTypes = PipeDataParser.parseActivityType(actTypesRes?.pref1, actTypesRes?.pref2, actTypesRes?.pref3);
-          
-          // Store location requirement flags (Java: arRequiredLocation)
-          final codes = PipeDataParser.split(actTypesRes?.pref1);
-          final requiredFlags = PipeDataParser.split(actTypesRes?.pref3);
-          for (int i = 0; i < codes.length; i++) {
-            _locationRequiredMap[codes[i]] = requiredFlags[i].toLowerCase() == "true";
-          }
+      final businessResult = await _crmService.getBusiness(_session.busCode);
+      final businesses = PipeDataParser.parseCodeName(
+        businessResult?.code,
+        businessResult?.name,
+      );
+      final editData = widget.editData;
+      final editBusiness = editData == null
+          ? null
+          : _codeForValue(businesses, editData.businessName);
+      final sessionBusiness =
+          businesses.any((business) => business.code == _session.busCode)
+          ? _session.busCode
+          : null;
 
-          if (_busCode == null && _businesses.isNotEmpty) _busCode = _businesses.first.code;
+      if (!mounted) return;
+      setState(() {
+        _businesses = businesses;
+        _busCode =
+            editBusiness ??
+            sessionBusiness ??
+            (businesses.isNotEmpty ? businesses.first.code : null);
+        if (editData != null) {
+          _taskId = editData.taskId.trim().isEmpty
+              ? '0'
+              : editData.taskId.trim();
+          _actSource = _sourceForValue(editData.type);
+          _status = _statuses.contains(editData.status)
+              ? editData.status
+              : 'Planned';
+          _priority = _priorities.contains(editData.priority)
+              ? editData.priority
+              : 'Medium';
+          _subjectCtrl.text = editData.subject;
+          _actDateCtrl.text = editData.date;
+          _descCtrl.text = editData.description;
+          _coordinateCtrl.text = editData.coordinate;
+        }
+      });
+
+      await _loadActivityTypes();
+      if (editData == null) {
+        await _loadLinkedEntities('');
+      } else {
+        await _loadEditLinkedEntities(editData);
+        if (!mounted) return;
+        setState(() {
+          _actTypeCode = _codeForValue(
+            _activityTypes,
+            editData.activityTypeName,
+          );
+          _linkedId = _linkedCodeForEdit(editData);
         });
-        _loadLinkedEntities('');
       }
     } catch (e) {
-      if (mounted) showCrmSnackBar(context, 'Failed to load data: $e', isError: true);
+      if (mounted) {
+        showCrmSnackBar(context, 'Failed to load data: $e', isError: true);
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  String? _codeForValue(List<DropdownOption> items, String value) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized.isEmpty) return null;
+    for (final item in items) {
+      if (item.code.trim().toLowerCase() == normalized ||
+          item.name.trim().toLowerCase() == normalized) {
+        return item.code;
+      }
+    }
+    return null;
+  }
+
+  String _sourceForValue(String value) {
+    final normalized = value.trim().toLowerCase();
+    for (final source in _actSources) {
+      if (source.toLowerCase() == normalized) return source;
+    }
+    return 'Lead';
+  }
+
+  bool _parseLocationRequired(String value) {
+    final normalized = value.trim().toLowerCase();
+    return normalized == 'true' ||
+        normalized == '1' ||
+        normalized == 'yes' ||
+        normalized == 'y';
+  }
+
+  Future<void> _loadActivityTypes() async {
+    final business = _busCode;
+    if (business == null || business.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _activityTypes = [];
+          _locationRequiredMap = {};
+        });
+      }
+      return;
+    }
+
+    final result = await _crmService.getActivityType(business);
+    if (!mounted || _busCode != business) return;
+
+    final codes = PipeDataParser.split(result?.pref1);
+    final flags = PipeDataParser.split(result?.pref3);
+    final locationRequired = <String, bool>{};
+    for (var i = 0; i < codes.length; i++) {
+      locationRequired[codes[i]] =
+          i < flags.length && _parseLocationRequired(flags[i]);
+    }
+
+    setState(() {
+      _activityTypes = PipeDataParser.parseActivityType(
+        result?.pref1,
+        result?.pref2,
+        result?.pref3,
+      );
+      _locationRequiredMap = locationRequired;
+    });
+  }
+
   Future<void> _getCurrentLocation() async {
     setState(() => _isLoading = true);
     try {
-      LocationPermission permission = await Geolocator.checkPermission();
+      var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
       }
-      
-      if (permission == LocationPermission.always || permission == LocationPermission.whileInUse) {
-        Position position = await Geolocator.getCurrentPosition();
-        _coordinateCtrl.text = "${position.latitude}, ${position.longitude}";
 
-        List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
-        if (placemarks.isNotEmpty) {
-          Placemark p = placemarks[0];
-          _locationCtrl.text = "${p.street}, ${p.subLocality}, ${p.locality}, ${p.country}";
+      if (permission == LocationPermission.always ||
+          permission == LocationPermission.whileInUse) {
+        final position = await Geolocator.getCurrentPosition();
+        final coordinate = '${position.latitude}, ${position.longitude}';
+        _coordinateCtrl.text = coordinate;
+
+        try {
+          final placemarks = await placemarkFromCoordinates(
+            position.latitude,
+            position.longitude,
+          );
+          if (placemarks.isNotEmpty) {
+            final place = placemarks.first;
+            _locationCtrl.text =
+                [place.street, place.subLocality, place.locality, place.country]
+                    .where((part) => part != null && part.trim().isNotEmpty)
+                    .join(', ');
+          }
+        } catch (_) {
+          _locationCtrl.text = coordinate;
         }
       } else {
-        showCrmSnackBar(context, "Location permission denied", isError: true);
+        if (mounted) {
+          showCrmSnackBar(context, 'Location permission denied', isError: true);
+        }
       }
     } catch (e) {
-      showCrmSnackBar(context, "Error getting location: $e", isError: true);
+      if (mounted) {
+        showCrmSnackBar(context, 'Error getting location: $e', isError: true);
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<List<DropdownOption>> _searchLinkedEntities(String query) async {
-    if (_busCode == null || _actSource == null) return [];
-    final bus = _busCode!;
+    final bus = _busCode;
+    final source = _actSource;
+    if (bus == null || bus.isEmpty || source == null || source.isEmpty) {
+      return [];
+    }
     final auth = _session.userAuth;
 
-    try {
-      switch (_actSource) {
-        case 'Lead':
-          final res = await _crmService.getLead(bus, auth, query);
-          return PipeDataParser.parseCodeName(res?.pref1, res?.pref2);
-        case 'Account':
-          final res = await _crmService.getAccount(bus, auth, query, '0');
-          return PipeDataParser.parseCodeName(res?.code, res?.name);
-        case 'Contact':
-          final res = await _crmService.getContact(bus, auth, query);
-          return PipeDataParser.parseCodeName(res?.pref3, res?.pref4);
-        case 'Potential':
-          final res = await _crmService.getPotential(bus, auth, query);
-          return PipeDataParser.parseCodeName(res?.pref3, res?.pref4);
-      }
-    } catch (_) {}
-    return [];
+    switch (source) {
+      case 'Lead':
+        final result = await _crmService.getLead(bus, auth, query);
+        return PipeDataParser.parseCodeName(result?.pref1, result?.pref2);
+      case 'Account':
+        final result = await _crmService.getAccount(bus, auth, query, '0');
+        return PipeDataParser.parseCodeName(result?.code, result?.name);
+      case 'Contact':
+        final result = await _crmService.getContact(bus, auth, query);
+        return PipeDataParser.parseCodeName(result?.pref3, result?.pref4);
+      case 'Potential':
+        final result = await _crmService.getPotential(bus, auth, query);
+        return PipeDataParser.parseCodeName(result?.pref3, result?.pref4);
+      default:
+        return [];
+    }
   }
 
   Future<void> _loadLinkedEntities(String query) async {
+    final requestId = ++_linkedRequestId;
+    final business = _busCode;
+    final source = _actSource;
     final results = await _searchLinkedEntities(query);
-    if (mounted) setState(() => _linkedEntities = results);
+    if (!mounted ||
+        requestId != _linkedRequestId ||
+        business != _busCode ||
+        source != _actSource) {
+      return;
+    }
+    setState(() => _linkedEntities = results);
+  }
+
+  Future<void> _loadEditLinkedEntities(ActivityEditData data) async {
+    await _loadLinkedEntities(data.linkedName);
+    if (_linkedCodeForEdit(data) != null || data.linkedSubName.trim().isEmpty) {
+      return;
+    }
+
+    final existing = List<DropdownOption>.of(_linkedEntities);
+    final requestId = ++_linkedRequestId;
+    final business = _busCode;
+    final source = _actSource;
+    final additional = await _searchLinkedEntities(data.linkedSubName.trim());
+    if (!mounted ||
+        requestId != _linkedRequestId ||
+        business != _busCode ||
+        source != _actSource) {
+      return;
+    }
+
+    final merged = <String, DropdownOption>{
+      for (final item in existing) item.code: item,
+      for (final item in additional) item.code: item,
+    };
+    setState(() => _linkedEntities = merged.values.toList());
+  }
+
+  String? _linkedCodeForEdit(ActivityEditData data) {
+    final values = {
+      data.linkedName.trim().toLowerCase(),
+      data.linkedSubName.trim().toLowerCase(),
+    }..remove('');
+
+    for (final item in _linkedEntities) {
+      if (values.contains(item.code.trim().toLowerCase()) ||
+          values.contains(item.name.trim().toLowerCase())) {
+        return item.code;
+      }
+    }
+    for (final item in _linkedEntities) {
+      final code = item.code.trim().toLowerCase();
+      final name = item.name.trim().toLowerCase();
+      if (values.any(
+        (value) =>
+            value.isNotEmpty &&
+            (name.contains(value) ||
+                value.contains(name) ||
+                code.contains(value) ||
+                value.contains(code)),
+      )) {
+        return item.code;
+      }
+    }
+    return null;
   }
 
   Future<void> _selectDateTime() async {
-    final date = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime(2000), lastDate: DateTime(2101));
+    final date = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+    );
     if (date == null || !mounted) return;
-    final time = await showTimePicker(context: context, initialTime: TimeOfDay.now());
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
     if (time != null && mounted) {
       setState(() {
-        _actDateCtrl.text = "${date.month}/${date.day}/${date.year} ${time.hour}:${time.minute}:00";
+        _actDateCtrl.text =
+            '${date.month}/${date.day}/${date.year} ${time.hour}:${time.minute}:00';
       });
     }
   }
 
-  Future<void> _saveActivity() async {
-    if (!_formKey.currentState!.validate()) return;
-    
-    // Java Logic: Validation for Required Location
-    bool isLocReq = _locationRequiredMap[_actTypeCode] ?? false;
-    if (isLocReq && _coordinateCtrl.text.isEmpty) {
-      showCrmSnackBar(context, "Invalid current location. GPS is required for this activity type.", isError: true);
-      return;
+  bool _validateActivity() {
+    if (_busCode == null || _busCode!.isEmpty) {
+      showCrmSnackBar(context, 'Business is required', isError: true);
+      return false;
     }
+    if (_actSource == null || _actSource!.isEmpty) {
+      showCrmSnackBar(context, 'Type is required', isError: true);
+      return false;
+    }
+    if (_linkedId == null || _linkedId!.isEmpty) {
+      showCrmSnackBar(
+        context,
+        'Linked ${_actSource ?? 'entity'} is required',
+        isError: true,
+      );
+      return false;
+    }
+    if (_actTypeCode == null || _actTypeCode!.isEmpty) {
+      showCrmSnackBar(context, 'Activity Type is required', isError: true);
+      return false;
+    }
+    if (_subjectCtrl.text.trim().isEmpty) {
+      showCrmSnackBar(context, 'Subject is required', isError: true);
+      return false;
+    }
+    if (_descCtrl.text.trim().isEmpty) {
+      showCrmSnackBar(context, 'Description is required', isError: true);
+      return false;
+    }
+    if ((_locationRequiredMap[_actTypeCode] ?? false) &&
+        _coordinateCtrl.text.trim().isEmpty) {
+      showCrmSnackBar(
+        context,
+        'Invalid current location. GPS is required for this activity type.',
+        isError: true,
+      );
+      return false;
+    }
+    return _formKey.currentState?.validate() ?? false;
+  }
+
+  Future<void> _saveActivity() async {
+    FocusScope.of(context).unfocus();
+    if (!_validateActivity()) return;
 
     setState(() => _isLoading = true);
     try {
+      final linkedId = _linkedId!;
+      final source = _actSource!;
       final envelope = PostActivityEnvelope(
-        prmLeadID: _actSource == 'Lead' ? (_linkedId ?? '') : '',
-        prmActID: '0',
-        prmContactID: _actSource == 'Contact' ? (_linkedId ?? '') : '',
-        prmPotentialID: _actSource == 'Potential' ? (_linkedId ?? '') : '',
-        prmType: _actSource ?? '',
+        prmLeadID: source == 'Lead' ? linkedId : '',
+        prmActID: source == 'Account' ? linkedId : '',
+        prmContactID: source == 'Contact' ? linkedId : '',
+        prmPotentialID: source == 'Potential' ? linkedId : '',
+        prmType: source,
         prmSubject: _subjectCtrl.text.trim(),
         prmDate: _actDateCtrl.text.trim(),
         prmStatus: _status ?? '',
@@ -189,14 +445,14 @@ class _ActivityPageState extends State<ActivityPage> {
         prmCoordinate: _coordinateCtrl.text.trim(),
         prmLocation: _locationCtrl.text.trim(),
         prmUser: _session.username,
-        prmTaskID: _actSource == 'Account' ? (_linkedId ?? '') : '',
+        prmTaskID: _taskId.trim().isEmpty ? '0' : _taskId.trim(),
       );
 
       final result = await _crmService.postActivity(envelope);
       if (mounted) {
         if (result?.status == true) {
-          showCrmSnackBar(context, 'Activity successfully added');
-          _clearForm();
+          showCrmSnackBar(context, 'Activity successfully saved');
+          widget.onCompleted?.call();
         } else {
           showCrmSnackBar(context, 'Failed to save activity', isError: true);
         }
@@ -208,20 +464,99 @@ class _ActivityPageState extends State<ActivityPage> {
     }
   }
 
-  void _clearForm() {
-    _subjectCtrl.clear();
-    _descCtrl.clear();
-    _locationCtrl.clear();
-    _coordinateCtrl.clear();
-    _initDateTime();
+  Future<void> _changeBusiness(String? value) async {
     setState(() {
+      _isLoading = true;
+      _busCode = value;
+      _linkedId = null;
+      _actTypeCode = null;
+      _activityTypes = [];
+      _linkedEntities = [];
+      _locationRequiredMap = {};
+      _locationCtrl.clear();
+      _coordinateCtrl.clear();
+    });
+
+    try {
+      await _loadActivityTypes();
+      await _loadLinkedEntities('');
+    } catch (e) {
+      if (mounted) {
+        showCrmSnackBar(context, 'Failed to load data: $e', isError: true);
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _changeSource(String? value) async {
+    setState(() {
+      _actSource = value;
+      _linkedId = null;
+      _linkedEntities = [];
+    });
+    try {
+      await _loadLinkedEntities('');
+    } catch (e) {
+      if (mounted) {
+        showCrmSnackBar(
+          context,
+          'Failed to load linked entities: $e',
+          isError: true,
+        );
+      }
+    }
+  }
+
+  Future<void> _clearForm() async {
+    FocusScope.of(context).unfocus();
+    final sessionBusiness =
+        _businesses.any((business) => business.code == _session.busCode)
+        ? _session.busCode
+        : null;
+
+    setState(() {
+      _isLoading = true;
+      _taskId = '0';
+      _busCode =
+          sessionBusiness ??
+          (_businesses.isNotEmpty ? _businesses.first.code : null);
       _actSource = 'Lead';
       _linkedId = null;
       _actTypeCode = null;
       _status = 'Planned';
       _priority = 'Medium';
+      _activityTypes = [];
+      _linkedEntities = [];
+      _locationRequiredMap = {};
+      _subjectCtrl.clear();
+      _descCtrl.clear();
+      _locationCtrl.clear();
+      _coordinateCtrl.clear();
+      _initDateTime();
+      _formKey.currentState?.reset();
     });
-    _loadLinkedEntities('');
+
+    try {
+      await _loadActivityTypes();
+      await _loadLinkedEntities('');
+    } catch (e) {
+      if (mounted) {
+        showCrmSnackBar(context, 'Failed to load data: $e', isError: true);
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _actDateCtrl.dispose();
+    _locationCtrl.dispose();
+    _subjectCtrl.dispose();
+    _descCtrl.dispose();
+    _coordinateCtrl.dispose();
+    super.dispose();
   }
 
   @override
@@ -244,20 +579,20 @@ class _ActivityPageState extends State<ActivityPage> {
                   title: "Activity Information",
                   icon: Icons.event_note_outlined,
                   children: [
-                    CrmDropdownField(label: "Business", items: _businesses, value: _busCode, onChanged: (v) => setState(() => _busCode = v)),
-                    
-                    // Type (Link To) - Java: cboType
                     CrmDropdownField(
-                      label: "Type (Link To)", 
-                      items: _actSources.map((e) => DropdownOption(code: e, name: e)).toList(), 
-                      value: _actSource, 
-                      onChanged: (v) {
-                        setState(() { _actSource = v; _linkedId = null; _linkedEntities = []; });
-                        _loadLinkedEntities('');
-                      }
+                      label: "Business",
+                      items: _businesses,
+                      value: _busCode,
+                      onChanged: _changeBusiness,
                     ),
-
-                    // Linked Entity - Dynamic Visibility/Search
+                    CrmDropdownField(
+                      label: "Type (Link To)",
+                      items: _actSources
+                          .map((e) => DropdownOption(code: e, name: e))
+                          .toList(),
+                      value: _actSource,
+                      onChanged: _changeSource,
+                    ),
                     CrmDropdownField(
                       label: "Linked $_actSource",
                       items: _linkedEntities,
@@ -266,39 +601,69 @@ class _ActivityPageState extends State<ActivityPage> {
                       onSearch: _searchLinkedEntities,
                       hint: "Search $_actSource...",
                     ),
-
-                    // Activity Type - Java: cboActType
                     CrmDropdownField(
-                      label: "Activity Type", 
-                      items: _activityTypes, 
-                      value: _actTypeCode, 
+                      label: "Activity Type",
+                      items: _activityTypes,
+                      value: _actTypeCode,
                       onChanged: (v) {
                         setState(() => _actTypeCode = v);
                         if (_locationRequiredMap[v] == true) {
                           _getCurrentLocation();
                         }
-                      }
+                      },
                     ),
-
-                    CrmTextField(label: "Subject", icon: Icons.subject_rounded, controller: _subjectCtrl, validator: (v) => v == null || v.isEmpty ? 'Required' : null),
-                    CrmTextField(label: "Date & Time", icon: Icons.calendar_month_outlined, controller: _actDateCtrl, readOnly: true, onTap: _selectDateTime),
-                    
-                    CrmDropdownField(label: "Status", items: _statuses.map((e) => DropdownOption(code: e, name: e)).toList(), value: _status, onChanged: (v) => setState(() => _status = v)),
-                    CrmDropdownField(label: "Priority", items: _priorities.map((e) => DropdownOption(code: e, name: e)).toList(), value: _priority, onChanged: (v) => setState(() => _priority = v)),
-                    
                     CrmTextField(
-                      label: "Coordinate", 
-                      icon: Icons.location_searching, 
-                      controller: _coordinateCtrl, 
+                      label: "Subject",
+                      icon: Icons.subject_rounded,
+                      controller: _subjectCtrl,
+                      validator: (v) =>
+                          v == null || v.trim().isEmpty ? 'Required' : null,
+                    ),
+                    CrmTextField(
+                      label: "Date & Time",
+                      icon: Icons.calendar_month_outlined,
+                      controller: _actDateCtrl,
                       readOnly: true,
-                      suffix: isLocationRequired ? const Icon(Icons.lock_outline, size: 18, color: Colors.grey) : IconButton(icon: const Icon(Icons.my_location), onPressed: _getCurrentLocation),
+                      onTap: _selectDateTime,
+                    ),
+                    CrmDropdownField(
+                      label: "Status",
+                      items: _statuses
+                          .map((e) => DropdownOption(code: e, name: e))
+                          .toList(),
+                      value: _status,
+                      onChanged: (v) => setState(() => _status = v),
+                    ),
+                    CrmDropdownField(
+                      label: "Priority",
+                      items: _priorities
+                          .map((e) => DropdownOption(code: e, name: e))
+                          .toList(),
+                      value: _priority,
+                      onChanged: (v) => setState(() => _priority = v),
                     ),
                     CrmTextField(
-                      label: "Location Address", 
-                      icon: Icons.location_on_outlined, 
-                      controller: _locationCtrl, 
-                      readOnly: isLocationRequired, 
-                      maxLines: 2
+                      label: "Coordinate",
+                      icon: Icons.location_searching,
+                      controller: _coordinateCtrl,
+                      readOnly: true,
+                      suffix: isLocationRequired
+                          ? const Icon(
+                              Icons.lock_outline,
+                              size: 18,
+                              color: Colors.grey,
+                            )
+                          : IconButton(
+                              icon: const Icon(Icons.my_location),
+                              onPressed: _getCurrentLocation,
+                            ),
+                    ),
+                    CrmTextField(
+                      label: "Location Address",
+                      icon: Icons.location_on_outlined,
+                      controller: _locationCtrl,
+                      readOnly: isLocationRequired,
+                      maxLines: 2,
                     ),
                   ],
                 ),
@@ -307,7 +672,14 @@ class _ActivityPageState extends State<ActivityPage> {
                   title: "Description",
                   icon: Icons.description_outlined,
                   children: [
-                    CrmTextField(label: "Description", icon: Icons.notes_rounded, controller: _descCtrl, maxLines: 4),
+                    CrmTextField(
+                      label: "Description",
+                      icon: Icons.notes_rounded,
+                      controller: _descCtrl,
+                      maxLines: 4,
+                      validator: (v) =>
+                          v == null || v.trim().isEmpty ? 'Required' : null,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 32),
@@ -321,23 +693,74 @@ class _ActivityPageState extends State<ActivityPage> {
   }
 
   Widget _buildHeader() {
+    final isEdit = widget.editData != null;
     return Row(
       children: [
-        Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.deepPurple.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.local_activity_rounded, color: Colors.deepPurple)),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.deepPurple.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(
+            Icons.local_activity_rounded,
+            color: Colors.deepPurple,
+          ),
+        ),
         const SizedBox(width: 16),
-        const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text("Log Activity", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)), Text("Track your sales interactions", style: TextStyle(color: Colors.grey))]),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              isEdit ? "Edit Activity" : "Log Activity",
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              isEdit
+                  ? "Update activity details"
+                  : "Track your sales interactions",
+              style: const TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
       ],
     );
   }
 
-  Widget _buildSectionCard({required String title, required IconData icon, required List<Widget> children}) {
+  Widget _buildSectionCard({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
     return Container(
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 15, offset: const Offset(0, 5))]),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [Icon(icon, size: 20, color: const Color(0xFF1E4CCB)), const SizedBox(width: 8), Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))]),
+          Row(
+            children: [
+              Icon(icon, size: 20, color: const Color(0xFF1E4CCB)),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
           const Divider(height: 30, thickness: 0.5),
           ...children,
         ],
@@ -346,11 +769,47 @@ class _ActivityPageState extends State<ActivityPage> {
   }
 
   Widget _buildActionButtons() {
+    final isEdit = widget.editData != null;
     return Row(
       children: [
-        Expanded(child: OutlinedButton(onPressed: _clearForm, style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.redAccent), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: const Text("Clear", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)))),
+        Expanded(
+          child: OutlinedButton(
+            onPressed: isEdit ? widget.onBack : _clearForm,
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Colors.redAccent),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Text(
+              isEdit ? "Back" : "Clear",
+              style: const TextStyle(
+                color: Colors.redAccent,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
         const SizedBox(width: 16),
-        Expanded(flex: 2, child: ElevatedButton(onPressed: _saveActivity, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E4CCB), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: const Text("Save Activity", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)))),
+        Expanded(
+          flex: 2,
+          child: ElevatedButton(
+            onPressed: _saveActivity,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1E4CCB),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              "Save Activity",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          ),
+        ),
       ],
     );
   }

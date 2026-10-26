@@ -1,14 +1,64 @@
 import 'package:flutter/material.dart';
-import '../../../../models/contact.dart';
 import '../../../../dao/venus_crm_service.dart';
+import '../../../../envelopes/post_potential_envelope.dart';
+import '../../../../models/contact.dart';
 import '../../../../shared/models/dropdown_option.dart';
 import '../../../../shared/utils/crm_session.dart';
 import '../../../../shared/utils/pipe_data_parser.dart';
 import '../../../../shared/widgets/crm_form_widgets.dart';
 import '../../../../shared/widgets/loading_overlay.dart';
 
+class PotentialEditData {
+  final String potentialId;
+  final String businessName;
+  final String accountName;
+  final String name;
+  final String closingDate;
+  final String stageDisplay;
+  final String finishDisplay;
+  final String ownerName;
+  final String amount;
+  final String methodName;
+  final String location;
+  final String leadSource;
+  final String description;
+  final bool isSuspend;
+  final String accountCode;
+  final String contactRecords;
+  final String stageRecords;
+
+  const PotentialEditData({
+    required this.potentialId,
+    required this.businessName,
+    required this.accountName,
+    required this.name,
+    required this.closingDate,
+    required this.stageDisplay,
+    required this.finishDisplay,
+    required this.ownerName,
+    required this.amount,
+    required this.methodName,
+    required this.location,
+    required this.leadSource,
+    required this.description,
+    required this.isSuspend,
+    required this.accountCode,
+    required this.contactRecords,
+    required this.stageRecords,
+  });
+}
+
 class PotentialPage extends StatefulWidget {
-  const PotentialPage({super.key});
+  final PotentialEditData? editData;
+  final VoidCallback? onBack;
+  final VoidCallback? onCompleted;
+
+  const PotentialPage({
+    super.key,
+    this.editData,
+    this.onBack,
+    this.onCompleted,
+  });
 
   @override
   State<PotentialPage> createState() => _PotentialPageState();
@@ -20,15 +70,17 @@ class _PotentialPageState extends State<PotentialPage> {
 
   bool _isLoading = false;
   bool _isSuspend = false;
+  String _potentialId = '';
 
   String? _busCode;
-  String? _salesCode;
+  String? _ownerUser;
   String? _accountCode;
   String? _methodCode;
   String? _stageCode;
   String? _selectedContactId;
 
   List<DropdownOption> _businesses = [];
+  List<DropdownOption> _allSales = [];
   List<DropdownOption> _sales = [];
   List<DropdownOption> _accounts = [];
   List<DropdownOption> _methods = [];
@@ -47,7 +99,7 @@ class _PotentialPageState extends State<PotentialPage> {
   final _amountCtrl = TextEditingController();
   final _locationCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
-  
+
   // Contact section fields
   final _contactPositionCtrl = TextEditingController();
   final _contactDivisionCtrl = TextEditingController();
@@ -57,6 +109,8 @@ class _PotentialPageState extends State<PotentialPage> {
   @override
   void initState() {
     super.initState();
+    _potentialId = widget.editData?.potentialId ?? '';
+    _isSuspend = widget.editData?.isSuspend ?? false;
     _loadMasterData();
   }
 
@@ -64,31 +118,177 @@ class _PotentialPageState extends State<PotentialPage> {
     setState(() => _isLoading = true);
     try {
       await _session.load();
-      _busCode = _session.busCode;
-      
-      final bus = _busCode ?? '';
-      final auth = _session.userAuth;
-
-      final businessResult = await _crmService.getBusiness(bus);
-      final salesResult = await _crmService.getSales(bus, auth);
-      final accountResult = await _crmService.getAccount(bus, auth, '', '1');
-      final methodResult = await _crmService.getMethodPotential(bus);
-      final stageResult = await _crmService.getStage(bus);
+      _busCode = _session.busCode.isEmpty ? null : _session.busCode;
+      final businessResult = await _crmService.getBusiness(_busCode ?? '');
 
       if (mounted) {
         setState(() {
-          _businesses = PipeDataParser.parseCodeName(businessResult?.code, businessResult?.name);
-          _sales = PipeDataParser.parseSales(salesResult?.pref1, salesResult?.pref2, salesResult?.pref3);
-          _accounts = PipeDataParser.parseCodeName(accountResult?.code, accountResult?.name);
-          _methods = PipeDataParser.parseCodeName(methodResult?.code, methodResult?.name);
-          _stages = PipeDataParser.parseCodeName(stageResult?.code, stageResult?.name);
-          
-          if (_busCode == null && _businesses.isNotEmpty) _busCode = _businesses.first.code;
-          _salesCode = _session.salesCode;
+          _businesses = PipeDataParser.parseCodeName(
+            businessResult?.code,
+            businessResult?.name,
+          );
+          if (widget.editData != null) {
+            _busCode =
+                _codeByName(_businesses, widget.editData!.businessName) ??
+                _busCode;
+          }
+          if ((_busCode == null || _busCode!.isEmpty) &&
+              _businesses.isNotEmpty) {
+            _busCode = _businesses.first.code;
+          }
         });
       }
+      await _loadBusinessData(setDefaultOwner: widget.editData == null);
+      if (mounted && widget.editData != null) {
+        await _applyEditData(widget.editData!);
+      }
     } catch (e) {
-      if (mounted) showCrmSnackBar(context, 'Failed to load data: $e', isError: true);
+      if (mounted) {
+        showCrmSnackBar(context, 'Failed to load data: $e', isError: true);
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadBusinessData({required bool setDefaultOwner}) async {
+    final bus = _busCode;
+    if (bus == null || bus.isEmpty) return;
+
+    final results = await Future.wait([
+      _crmService.getSales(bus, _session.userAuth),
+      _crmService.getAccount(bus, _session.userAuth, '', 'POTENTIAL'),
+      _crmService.getMethodPotential(bus),
+      _crmService.getStage(bus),
+    ]);
+    if (!mounted) return;
+
+    final salesResult = results[0] as dynamic;
+    final accountResult = results[1] as dynamic;
+    final methodResult = results[2] as dynamic;
+    final stageResult = results[3] as dynamic;
+    final owners = PipeDataParser.parseSalesOwners(
+      salesResult?.pref1,
+      salesResult?.pref2,
+      salesResult?.pref3,
+    );
+
+    setState(() {
+      _allSales = owners;
+      _sales = owners;
+      _accounts = PipeDataParser.parseCodeName(
+        accountResult?.code,
+        accountResult?.name,
+      );
+      _methods = PipeDataParser.parseCodeName(
+        methodResult?.code,
+        methodResult?.name,
+      );
+      _stages = PipeDataParser.parseCodeName(
+        stageResult?.code,
+        stageResult?.name,
+      );
+      if (setDefaultOwner) _setDefaultOwner();
+    });
+  }
+
+  void _setDefaultOwner() {
+    _ownerUser = _codeByName(_allSales, _session.salesName);
+    if (_ownerUser == null &&
+        _allSales.any((owner) => owner.code == _session.username)) {
+      _ownerUser = _session.username;
+    }
+    if (_ownerUser == null && _allSales.isNotEmpty) {
+      _ownerUser = _allSales.first.code;
+    }
+  }
+
+  String? _codeByName(List<DropdownOption> options, String name) {
+    for (final option in options) {
+      if (option.name == name || option.code == name) return option.code;
+    }
+    return null;
+  }
+
+  Future<void> _applyEditData(PotentialEditData data) async {
+    setState(() {
+      _potentialId = data.potentialId;
+      _accountCode = _accounts.any((item) => item.code == data.accountCode)
+          ? data.accountCode
+          : _codeByName(_accounts, data.accountName);
+      _ownerUser = _codeByName(_allSales, data.ownerName);
+      _methodCode = _codeByName(_methods, data.methodName);
+      _nameCtrl.text = data.name;
+      _closingDateCtrl.text = data.closingDate;
+      _amountCtrl.text = data.amount;
+      _locationCtrl.text = data.location;
+      _descCtrl.text = data.description;
+      _isSuspend = data.isSuspend;
+      _savedContacts = _parseContactRecords(data.contactRecords);
+      _savedStages = _parseStageRecords(data.stageRecords);
+    });
+    if (_accountCode != null) await _loadContactsForAccount();
+  }
+
+  List<Map<String, String>> _parseContactRecords(String value) {
+    return PipeDataParser.split(value)
+        .map((record) {
+          final fields = record.split(';');
+          return {
+            'id': fields.length > 1 ? fields[1] : '',
+            'name': fields.length > 2 ? fields[2] : '',
+            'position': fields.length > 3 ? fields[3] : '',
+            'division': fields.length > 4 ? fields[4] : '',
+            'phone': fields.length > 5 ? fields[5] : '',
+            'desc': fields.length > 6 ? fields[6] : '',
+          };
+        })
+        .where((row) => row['id']!.isNotEmpty)
+        .toList();
+  }
+
+  List<Map<String, String>> _parseStageRecords(String value) {
+    return PipeDataParser.split(value)
+        .map((record) {
+          final fields = record.split(';');
+          return {
+            'code': fields.length > 1 ? fields[1] : '',
+            'name': fields.length > 2 ? fields[2] : '',
+            'startDate': fields.length > 3 ? fields[3] : '',
+            'finishDate': fields.length > 4 ? fields[4] : '',
+            'desc': fields.length > 5 ? fields[5] : '',
+          };
+        })
+        .where((row) => row['code']!.isNotEmpty)
+        .toList();
+  }
+
+  Future<void> _onBusinessChanged(String? value) async {
+    setState(() {
+      _busCode = value;
+      _ownerUser = null;
+      _accountCode = null;
+      _methodCode = null;
+      _stageCode = null;
+      _selectedContactId = null;
+      _selectedContactRow = null;
+      _selectedStageRow = null;
+      _sales = [];
+      _allSales = [];
+      _accounts = [];
+      _methods = [];
+      _stages = [];
+      _contacts = [];
+      _savedContacts = [];
+      _savedStages = [];
+    });
+    setState(() => _isLoading = true);
+    try {
+      await _loadBusinessData(setDefaultOwner: true);
+    } catch (e) {
+      if (mounted) {
+        showCrmSnackBar(context, 'Failed to load data: $e', isError: true);
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -120,10 +320,16 @@ class _PotentialPageState extends State<PotentialPage> {
       });
 
       if (contacts.isEmpty) {
-        showCrmSnackBar(context, 'No contacts found for selected account', isError: true);
+        showCrmSnackBar(
+          context,
+          'No contacts found for selected account',
+          isError: true,
+        );
       }
     } catch (e) {
-      if (mounted) showCrmSnackBar(context, 'Failed to load contacts: $e', isError: true);
+      if (mounted) {
+        showCrmSnackBar(context, 'Failed to load contacts: $e', isError: true);
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -131,10 +337,18 @@ class _PotentialPageState extends State<PotentialPage> {
 
   Future<List<DropdownOption>> _searchContactsForAccount(String query) async {
     if (_busCode == null || _accountCode == null) return [];
-    final result = await _crmService.getContact(_busCode!, _session.userAuth, query);
+    final result = await _crmService.getContact(
+      _busCode!,
+      _session.userAuth,
+      query,
+    );
     if (result == null) return [];
     final accountName = _optionName(_accounts, _accountCode);
-    final contacts = _buildContactsForAccount(result, _accountCode!, accountName);
+    final contacts = _buildContactsForAccount(
+      result,
+      _accountCode!,
+      accountName,
+    );
     if (mounted) setState(() => _contacts = contacts);
     return contacts;
   }
@@ -158,13 +372,18 @@ class _PotentialPageState extends State<PotentialPage> {
 
     for (var i = 0; i < rowCount; i++) {
       final rowAccountId = i < accountIds.length ? accountIds[i].trim() : '';
-      final rowAccountName = i < accountNames.length ? accountNames[i].trim() : '';
+      final rowAccountName = i < accountNames.length
+          ? accountNames[i].trim()
+          : '';
       final contactId = contactIds[i].trim();
-      final contactName = i < contactNames.length ? contactNames[i].trim() : contactId;
+      final contactName = i < contactNames.length
+          ? contactNames[i].trim()
+          : contactId;
 
       if (contactId.isEmpty) continue;
 
-      final matchesAccount = rowAccountId.toLowerCase() == normalizedAccountCode ||
+      final matchesAccount =
+          rowAccountId.toLowerCase() == normalizedAccountCode ||
           rowAccountName.toLowerCase() == normalizedAccountName ||
           rowAccountName.toLowerCase() == normalizedAccountCode ||
           rowAccountId.toLowerCase() == normalizedAccountName ||
@@ -189,11 +408,17 @@ class _PotentialPageState extends State<PotentialPage> {
       _selectedContactId = contactId;
       _isLoading = true;
     });
-    
+
     try {
-      final res = await _crmService.getDataContact(_busCode!, _session.userAuth, 'ID', contactId, '', '');
+      final res = await _crmService.getDataContact(
+        _busCode!,
+        _session.userAuth,
+        'ID',
+        contactId,
+        '',
+        '',
+      );
       if (res != null && mounted) {
-        // Pref5: Position, Pref10: Division, Pref8: Phone (from API documentation)
         setState(() {
           _contactPositionCtrl.text = res.pref5 ?? '';
           _contactDivisionCtrl.text = res.pref10 ?? '';
@@ -201,13 +426,22 @@ class _PotentialPageState extends State<PotentialPage> {
         });
       }
     } catch (e) {
-      if (mounted) showCrmSnackBar(context, 'Failed to load contact details: $e', isError: true);
+      if (mounted) {
+        showCrmSnackBar(
+          context,
+          'Failed to load contact details: $e',
+          isError: true,
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _selectDate(BuildContext context, TextEditingController controller) async {
+  Future<void> _selectDate(
+    BuildContext context,
+    TextEditingController controller,
+  ) async {
     final picked = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
@@ -215,7 +449,9 @@ class _PotentialPageState extends State<PotentialPage> {
       lastDate: DateTime(2101),
     );
     if (picked != null) {
-      setState(() => controller.text = "${picked.month}/${picked.day}/${picked.year}");
+      setState(
+        () => controller.text = "${picked.month}/${picked.day}/${picked.year}",
+      );
     }
   }
 
@@ -239,19 +475,24 @@ class _PotentialPageState extends State<PotentialPage> {
       'position': _contactPositionCtrl.text.trim(),
       'division': _contactDivisionCtrl.text.trim(),
       'phone': _contactPhoneCtrl.text.trim(),
-      'desc': _contactDescCtrl.text.trim(),
+      'desc': _descriptionValue(_contactDescCtrl.text),
     };
 
     setState(() {
-      _savedContacts.add(row);
-      _selectedContactRow = _savedContacts.length - 1;
+      if (_selectedContactRow != null &&
+          _selectedContactRow! < _savedContacts.length) {
+        _savedContacts[_selectedContactRow!] = row;
+      } else {
+        _savedContacts.add(row);
+      }
       _selectedContactId = null;
+      _selectedContactRow = null;
       _contactPositionCtrl.clear();
       _contactDivisionCtrl.clear();
       _contactPhoneCtrl.clear();
       _contactDescCtrl.clear();
     });
-    showCrmSnackBar(context, 'Contact added to list');
+    showCrmSnackBar(context, 'Contact saved');
   }
 
   void _deleteContact() {
@@ -280,18 +521,23 @@ class _PotentialPageState extends State<PotentialPage> {
       'name': _optionName(_stages, _stageCode),
       'startDate': _startDateCtrl.text.trim(),
       'finishDate': _finishDateCtrl.text.trim(),
-      'desc': _stageDescCtrl.text.trim(),
+      'desc': _descriptionValue(_stageDescCtrl.text),
     };
 
     setState(() {
-      _savedStages.add(row);
-      _selectedStageRow = _savedStages.length - 1;
+      if (_selectedStageRow != null &&
+          _selectedStageRow! < _savedStages.length) {
+        _savedStages[_selectedStageRow!] = row;
+      } else {
+        _savedStages.add(row);
+      }
       _stageCode = null;
+      _selectedStageRow = null;
       _startDateCtrl.clear();
       _finishDateCtrl.clear();
       _stageDescCtrl.clear();
     });
-    showCrmSnackBar(context, 'Stage added to list');
+    showCrmSnackBar(context, 'Stage saved');
   }
 
   void _deleteStage() {
@@ -302,6 +548,132 @@ class _PotentialPageState extends State<PotentialPage> {
     setState(() {
       _savedStages.removeAt(_selectedStageRow!);
       _selectedStageRow = null;
+    });
+  }
+
+  String _descriptionValue(String value) {
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? '-' : trimmed;
+  }
+
+  bool _validate() {
+    final validAccount =
+        _accountCode != null &&
+        _accounts.any((account) => account.code == _accountCode);
+    if (!validAccount) {
+      showCrmSnackBar(context, 'Please select a valid account', isError: true);
+      return false;
+    }
+    final validOwner =
+        _ownerUser != null &&
+        _allSales.any((owner) => owner.code == _ownerUser);
+    if (!validOwner) {
+      showCrmSnackBar(context, 'Please select a valid owner', isError: true);
+      return false;
+    }
+    if (_nameCtrl.text.trim().isEmpty) {
+      showCrmSnackBar(context, 'Please enter a potential name', isError: true);
+      return false;
+    }
+    if (_locationCtrl.text.trim().isEmpty) {
+      showCrmSnackBar(context, 'Please enter a location', isError: true);
+      return false;
+    }
+    if (_savedStages.isEmpty) {
+      showCrmSnackBar(context, 'Please add at least one stage', isError: true);
+      return false;
+    }
+    if (_savedContacts.isEmpty) {
+      showCrmSnackBar(
+        context,
+        'Please add at least one contact',
+        isError: true,
+      );
+      return false;
+    }
+    return true;
+  }
+
+  String _joinRows(String key, List<Map<String, String>> rows) {
+    return rows
+        .map(
+          (row) =>
+              key == 'desc'
+                  ? _descriptionValue(row[key] ?? '')
+                  : row[key] ?? '',
+        )
+        .join('|');
+  }
+
+  Future<void> _savePotential() async {
+    FocusScope.of(context).unfocus();
+    if (!_validate()) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final envelope = PostPotentialEnvelope(
+        prmPotentialID: _potentialId,
+        prmBusCode: _busCode!,
+        prmActID: _accountCode!,
+        prmPotentialName: _nameCtrl.text.trim(),
+        prmClosingDate: _closingDateCtrl.text.trim(),
+        prmLeadSourceCode: '',
+        prmPotentialOwner: _ownerUser!,
+        prmAmount: _amountCtrl.text.trim(),
+        prmDescription: _descriptionValue(_descCtrl.text),
+        prmIsSuspend: _isSuspend ? '1' : '0',
+        prmStageCode: _joinRows('code', _savedStages),
+        prmStageName: _joinRows('name', _savedStages),
+        prmStartDate: _joinRows('startDate', _savedStages),
+        prmFinishedDate: _joinRows('finishDate', _savedStages),
+        prmStageDesc: _joinRows('desc', _savedStages),
+        prmContactCode: _joinRows('id', _savedContacts),
+        prmContactDescription: _joinRows('desc', _savedContacts),
+        prmUser: _session.username,
+        prmMethodCode: _methodCode ?? '',
+        prmLocation: _locationCtrl.text.trim(),
+      );
+      final result = await _crmService.postPotential(envelope);
+      if (!mounted) return;
+      if (result?.status == true) {
+        showCrmSnackBar(context, 'Data Successfully Added');
+        widget.onCompleted?.call();
+      } else {
+        showCrmSnackBar(context, 'Failed to save the data', isError: true);
+      }
+    } catch (e) {
+      if (mounted) showCrmSnackBar(context, e.toString(), isError: true);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _clear() {
+    setState(() {
+      _potentialId = '';
+      _accountCode = null;
+      _methodCode = null;
+      _stageCode = null;
+      _selectedContactId = null;
+      _selectedContactRow = null;
+      _selectedStageRow = null;
+      _contacts = [];
+      _savedContacts = [];
+      _savedStages = [];
+      _isSuspend = false;
+      _closingDateCtrl.clear();
+      _startDateCtrl.clear();
+      _finishDateCtrl.clear();
+      _stageDescCtrl.clear();
+      _nameCtrl.clear();
+      _amountCtrl.clear();
+      _locationCtrl.clear();
+      _descCtrl.clear();
+      _contactPositionCtrl.clear();
+      _contactDivisionCtrl.clear();
+      _contactPhoneCtrl.clear();
+      _contactDescCtrl.clear();
+      _setDefaultOwner();
     });
   }
 
@@ -338,18 +710,62 @@ class _PotentialPageState extends State<PotentialPage> {
                 title: "Potential Information",
                 icon: Icons.trending_up_rounded,
                 children: [
-                  CrmDropdownField(label: "Business", items: _businesses, value: _busCode, onChanged: (v) => setState(() => _busCode = v)),
-                  CrmDropdownField(label: "Account", items: _accounts, value: _accountCode, onChanged: (v) {
-                    setState(() => _accountCode = v);
-                    _loadContactsForAccount();
-                  }),
-                  CrmDropdownField(label: "Owner", items: _sales, value: _salesCode, onChanged: (v) => setState(() => _salesCode = v)),
-                  CrmTextField(label: "Name", icon: Icons.assignment_outlined, controller: _nameCtrl),
-                  CrmTextField(label: "Amount", icon: Icons.monetization_on_outlined, controller: _amountCtrl, keyboardType: TextInputType.number),
-                  CrmTextField(label: "Closing Date", icon: Icons.calendar_today_outlined, controller: _closingDateCtrl, readOnly: true, onTap: () => _selectDate(context, _closingDateCtrl)),
-                  CrmDropdownField(label: "Method", items: _methods, value: _methodCode, onChanged: (v) => setState(() => _methodCode = v)),
-                  CrmTextField(label: "Location", icon: Icons.location_on_outlined, controller: _locationCtrl),
-                  CrmTextField(label: "Description", icon: Icons.description, controller: _descCtrl, maxLines: 3),
+                  CrmDropdownField(
+                    label: "Business",
+                    items: _businesses,
+                    value: _busCode,
+                    onChanged: _onBusinessChanged,
+                  ),
+                  CrmDropdownField(
+                    label: "Account",
+                    items: _accounts,
+                    value: _accountCode,
+                    onChanged: (v) {
+                      setState(() => _accountCode = v);
+                      _loadContactsForAccount();
+                    },
+                  ),
+                  CrmDropdownField(
+                    label: "Owner",
+                    items: _sales,
+                    value: _ownerUser,
+                    onChanged: (v) => setState(() => _ownerUser = v),
+                  ),
+                  CrmTextField(
+                    label: "Name",
+                    icon: Icons.assignment_outlined,
+                    controller: _nameCtrl,
+                  ),
+                  CrmTextField(
+                    label: "Amount",
+                    icon: Icons.monetization_on_outlined,
+                    controller: _amountCtrl,
+                    keyboardType: TextInputType.number,
+                  ),
+                  CrmTextField(
+                    label: "Closing Date",
+                    icon: Icons.calendar_today_outlined,
+                    controller: _closingDateCtrl,
+                    readOnly: true,
+                    onTap: () => _selectDate(context, _closingDateCtrl),
+                  ),
+                  CrmDropdownField(
+                    label: "Method",
+                    items: _methods,
+                    value: _methodCode,
+                    onChanged: (v) => setState(() => _methodCode = v),
+                  ),
+                  CrmTextField(
+                    label: "Location",
+                    icon: Icons.location_on_outlined,
+                    controller: _locationCtrl,
+                  ),
+                  CrmTextField(
+                    label: "Description",
+                    icon: Icons.description,
+                    controller: _descCtrl,
+                    maxLines: 3,
+                  ),
                   CrmSwitchTile(
                     title: "Is Suspend?",
                     value: _isSuspend,
@@ -369,12 +785,33 @@ class _PotentialPageState extends State<PotentialPage> {
                     onChanged: _onContactChanged,
                     onSearch: _searchContactsForAccount,
                     enabled: _accountCode != null,
-                    hint: _accountCode == null ? "Select account first" : "Select contact",
+                    hint: _accountCode == null
+                        ? "Select account first"
+                        : "Select contact",
                   ),
-                  CrmTextField(label: "Position", icon: Icons.work_outline, controller: _contactPositionCtrl, readOnly: true),
-                  CrmTextField(label: "Division", icon: Icons.business_outlined, controller: _contactDivisionCtrl, readOnly: true),
-                  CrmTextField(label: "Phone", icon: Icons.phone_android_outlined, controller: _contactPhoneCtrl, readOnly: true),
-                  CrmTextField(label: "Description", icon: Icons.notes_rounded, controller: _contactDescCtrl),
+                  CrmTextField(
+                    label: "Position",
+                    icon: Icons.work_outline,
+                    controller: _contactPositionCtrl,
+                    readOnly: true,
+                  ),
+                  CrmTextField(
+                    label: "Division",
+                    icon: Icons.business_outlined,
+                    controller: _contactDivisionCtrl,
+                    readOnly: true,
+                  ),
+                  CrmTextField(
+                    label: "Phone",
+                    icon: Icons.phone_android_outlined,
+                    controller: _contactPhoneCtrl,
+                    readOnly: true,
+                  ),
+                  CrmTextField(
+                    label: "Description",
+                    icon: Icons.notes_rounded,
+                    controller: _contactDescCtrl,
+                  ),
                   const SizedBox(height: 8),
                   _buildSubActionButtons("Contact"),
                   const SizedBox(height: 16),
@@ -386,15 +823,40 @@ class _PotentialPageState extends State<PotentialPage> {
                 title: "Stage History",
                 icon: Icons.history_rounded,
                 children: [
-                  CrmDropdownField(label: "Stage", items: _stages, value: _stageCode, onChanged: (v) => setState(() => _stageCode = v)),
+                  CrmDropdownField(
+                    label: "Stage",
+                    items: _stages,
+                    value: _stageCode,
+                    onChanged: (v) => setState(() => _stageCode = v),
+                  ),
                   Row(
                     children: [
-                      Expanded(child: CrmTextField(label: "Start Date", icon: Icons.calendar_today_outlined, controller: _startDateCtrl, readOnly: true, onTap: () => _selectDate(context, _startDateCtrl))),
+                      Expanded(
+                        child: CrmTextField(
+                          label: "Start Date",
+                          icon: Icons.calendar_today_outlined,
+                          controller: _startDateCtrl,
+                          readOnly: true,
+                          onTap: () => _selectDate(context, _startDateCtrl),
+                        ),
+                      ),
                       const SizedBox(width: 12),
-                      Expanded(child: CrmTextField(label: "Finish Date", icon: Icons.calendar_today_outlined, controller: _finishDateCtrl, readOnly: true, onTap: () => _selectDate(context, _finishDateCtrl))),
+                      Expanded(
+                        child: CrmTextField(
+                          label: "Finish Date",
+                          icon: Icons.calendar_today_outlined,
+                          controller: _finishDateCtrl,
+                          readOnly: true,
+                          onTap: () => _selectDate(context, _finishDateCtrl),
+                        ),
+                      ),
                     ],
                   ),
-                  CrmTextField(label: "Description", icon: Icons.notes_rounded, controller: _stageDescCtrl),
+                  CrmTextField(
+                    label: "Description",
+                    icon: Icons.notes_rounded,
+                    controller: _stageDescCtrl,
+                  ),
                   const SizedBox(height: 8),
                   _buildSubActionButtons("Stage"),
                   const SizedBox(height: 16),
@@ -415,37 +877,64 @@ class _PotentialPageState extends State<PotentialPage> {
       children: [
         Container(
           padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(
+            color: Colors.green.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: const Icon(Icons.stars_rounded, color: Colors.green),
         ),
         const SizedBox(width: 16),
         const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Potential Lead", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            Text("Analyze your business growth", style: TextStyle(color: Colors.grey)),
+            Text(
+              "Potential Lead",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              "Analyze your business growth",
+              style: TextStyle(color: Colors.grey),
+            ),
           ],
-        )
+        ),
       ],
     );
   }
 
-  Widget _buildSectionCard({required String title, required IconData icon, required List<Widget> children}) {
+  Widget _buildSectionCard({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 15, offset: const Offset(0, 5))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            Icon(icon, size: 20, color: const Color(0xFF1E4CCB)),
-            const SizedBox(width: 8),
-            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          ]),
+          Row(
+            children: [
+              Icon(icon, size: 20, color: const Color(0xFF1E4CCB)),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
           const Divider(height: 30, thickness: 0.5),
           ...children,
         ],
@@ -465,7 +954,9 @@ class _PotentialPageState extends State<PotentialPage> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1E4CCB),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
           ),
         ),
@@ -478,7 +969,9 @@ class _PotentialPageState extends State<PotentialPage> {
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.redAccent,
               side: const BorderSide(color: Colors.redAccent),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
           ),
         ),
@@ -525,9 +1018,17 @@ class _PotentialPageState extends State<PotentialPage> {
           dataRowMinHeight: 44,
           columnSpacing: 16,
           columns: columns
-              .map((c) => DataColumn(
-                    label: Text(c, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                  ))
+              .map(
+                (c) => DataColumn(
+                  label: Text(
+                    c,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              )
               .toList(),
           rows: List.generate(rows.length, (index) {
             final row = rows[index];
@@ -553,13 +1054,30 @@ class _PotentialPageState extends State<PotentialPage> {
                 setState(() {
                   if (isContact) {
                     _selectedContactRow = index;
+                    _selectedContactId = row['id'];
+                    _contactPositionCtrl.text = row['position'] ?? '';
+                    _contactDivisionCtrl.text = row['division'] ?? '';
+                    _contactPhoneCtrl.text = row['phone'] ?? '';
+                    _contactDescCtrl.text = row['desc'] == '-'
+                        ? ''
+                        : row['desc'] ?? '';
                   } else {
                     _selectedStageRow = index;
+                    _stageCode = row['code'];
+                    _startDateCtrl.text = row['startDate'] ?? '';
+                    _finishDateCtrl.text = row['finishDate'] ?? '';
+                    _stageDescCtrl.text = row['desc'] == '-'
+                        ? ''
+                        : row['desc'] ?? '';
                   }
                 });
               },
               cells: cells
-                  .map((text) => DataCell(Text(text, style: const TextStyle(fontSize: 12))))
+                  .map(
+                    (text) => DataCell(
+                      Text(text, style: const TextStyle(fontSize: 12)),
+                    ),
+                  )
                   .toList(),
             );
           }),
@@ -573,18 +1091,47 @@ class _PotentialPageState extends State<PotentialPage> {
       children: [
         Expanded(
           child: OutlinedButton(
-            onPressed: () {},
-            style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16), side: const BorderSide(color: Colors.redAccent)),
-            child: const Text("Clear All", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+            onPressed: widget.onBack,
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              side: const BorderSide(color: Colors.redAccent),
+            ),
+            child: const Text(
+              "Back",
+              style: TextStyle(
+                color: Colors.redAccent,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: OutlinedButton(
+            onPressed: _clear,
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+            child: const Text(
+              "Clear",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ),
         const SizedBox(width: 16),
         Expanded(
           flex: 2,
           child: ElevatedButton(
-            onPressed: () => showCrmSnackBar(context, 'Post Potential API not available in documentation'),
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E4CCB), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16)),
-            child: const Text("Save Potential", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            onPressed: _savePotential,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1E4CCB),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+            child: const Text(
+              "Save Potential",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
           ),
         ),
       ],

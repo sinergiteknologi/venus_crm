@@ -17,8 +17,11 @@ class LeadEditData {
   final String customer;
   final String phone;
   final String mobile;
+  final String fax;
   final String email;
   final String website;
+  final String leadStatus;
+  final String noOfEmployees;
   final String address;
   final String city;
   final String state;
@@ -37,8 +40,11 @@ class LeadEditData {
     required this.customer,
     required this.phone,
     required this.mobile,
+    this.fax = '',
     required this.email,
     required this.website,
+    this.leadStatus = '',
+    this.noOfEmployees = '',
     required this.address,
     required this.city,
     required this.state,
@@ -52,8 +58,9 @@ class LeadEditData {
 class LeadPage extends StatefulWidget {
   final LeadEditData? editData;
   final VoidCallback? onBack;
+  final VoidCallback? onCompleted;
 
-  const LeadPage({super.key, this.editData, this.onBack});
+  const LeadPage({super.key, this.editData, this.onBack, this.onCompleted});
 
   @override
   State<LeadPage> createState() => _LeadPageState();
@@ -67,6 +74,7 @@ class _LeadPageState extends State<LeadPage> {
   bool _isLoading = false;
   bool _isSuspend = false;
   bool _masterDataReady = false;
+  bool _isEditing = false;
 
   String? _busCode;
   String? _ownerUser;
@@ -102,6 +110,7 @@ class _LeadPageState extends State<LeadPage> {
     super.initState();
     _leadId = widget.editData?.leadId ?? '';
     _isSuspend = widget.editData?.isSuspend ?? false;
+    _isEditing = widget.editData != null;
     _loadMasterData();
   }
 
@@ -109,44 +118,30 @@ class _LeadPageState extends State<LeadPage> {
     setState(() => _isLoading = true);
     try {
       await _session.load();
-      _busCode = _session.busCode;
-
-      final bus = _busCode ?? '';
-
-      final businessResult = await _crmService.getBusiness(bus);
-      final lobResult = await _crmService.getLOB(bus);
-      final leadSourceResult = await _crmService.getLeadSource(bus);
-      final leadStatusResult = await _crmService.getLeadStatus(bus);
+      final businessResult = await _crmService.getBusiness(_session.busCode);
+      final businesses = PipeDataParser.parseCodeName(
+        businessResult?.code,
+        businessResult?.name,
+      );
+      final editBusiness = widget.editData == null
+          ? null
+          : _codeByName(businesses, widget.editData!.busName);
+      final sessionBusiness =
+          businesses.any((business) => business.code == _session.busCode)
+          ? _session.busCode
+          : null;
 
       if (mounted) {
         setState(() {
-          _businesses = PipeDataParser.parseCodeName(
-            businessResult?.code,
-            businessResult?.name,
-          );
-          _lobs = PipeDataParser.withEmptyOption(
-            PipeDataParser.parseCodeName(lobResult?.code, lobResult?.name),
-          );
-          _leadSources = PipeDataParser.withEmptyOption(
-            PipeDataParser.parseCodeName(
-              leadSourceResult?.code,
-              leadSourceResult?.name,
-            ),
-          );
-          _leadStatuses = PipeDataParser.withEmptyOption(
-            PipeDataParser.parseCodeName(
-              leadStatusResult?.code,
-              leadStatusResult?.name,
-            ),
-          );
-
-          if (_busCode == null && _businesses.isNotEmpty) {
-            _busCode = _businesses.first.code;
-          }
+          _businesses = businesses;
+          _busCode =
+              editBusiness ??
+              sessionBusiness ??
+              (businesses.isNotEmpty ? businesses.first.code : null);
         });
       }
 
-      await _loadSalesForBusiness(setDefaultOwner: widget.editData == null);
+      await _loadDependentData(setDefaultOwner: widget.editData == null);
 
       if (mounted && widget.editData != null) {
         _applyEditData(widget.editData!);
@@ -165,10 +160,14 @@ class _LeadPageState extends State<LeadPage> {
     }
   }
 
-  Future<void> _loadSalesForBusiness({bool setDefaultOwner = false}) async {
-    if (_busCode == null || _busCode!.isEmpty) return;
+  Future<void> _loadDependentData({bool setDefaultOwner = false}) async {
+    final busCode = _busCode;
+    if (busCode == null || busCode.isEmpty) return;
 
-    final salesResult = await _crmService.getSales(_busCode!, _session.userAuth);
+    final salesResult = await _crmService.getSales(busCode, _session.userAuth);
+    final lobResult = await _crmService.getLOB(busCode);
+    final leadSourceResult = await _crmService.getLeadSource(busCode);
+    final leadStatusResult = await _crmService.getLeadStatus(busCode);
     final owners = PipeDataParser.parseSalesOwners(
       salesResult?.pref1,
       salesResult?.pref2,
@@ -180,6 +179,21 @@ class _LeadPageState extends State<LeadPage> {
     setState(() {
       _allSales = owners;
       _sales = owners;
+      _lobs = PipeDataParser.withEmptyOption(
+        PipeDataParser.parseCodeName(lobResult?.code, lobResult?.name),
+      );
+      _leadSources = PipeDataParser.withEmptyOption(
+        PipeDataParser.parseCodeName(
+          leadSourceResult?.code,
+          leadSourceResult?.name,
+        ),
+      );
+      _leadStatuses = PipeDataParser.withEmptyOption(
+        PipeDataParser.parseCodeName(
+          leadStatusResult?.code,
+          leadStatusResult?.name,
+        ),
+      );
       if (setDefaultOwner) {
         _setDefaultOwner(owners);
       } else if (_ownerUser != null &&
@@ -214,9 +228,9 @@ class _LeadPageState extends State<LeadPage> {
     final filtered = lower.isEmpty
         ? _allSales
         : _allSales
-            .where((owner) => owner.name.toLowerCase().contains(lower))
-            .take(5)
-            .toList();
+              .where((owner) => owner.name.toLowerCase().contains(lower))
+              .take(5)
+              .toList();
 
     if (mounted) setState(() => _sales = filtered);
     return filtered;
@@ -232,16 +246,18 @@ class _LeadPageState extends State<LeadPage> {
   void _applyEditData(LeadEditData data) {
     setState(() {
       _leadId = data.leadId;
-      _busCode = _codeByName(_businesses, data.busName) ?? _busCode;
       _lobCode = _codeByName(_lobs, data.lob);
       _leadSourceCode = _codeByName(_leadSources, data.leadSource);
+      _leadStatusCode = _codeByName(_leadStatuses, data.leadStatus);
       _ownerUser = _codeByName(_allSales, data.sales);
       _companyCtrl.text = data.company;
       _customerCtrl.text = data.customer;
       _phoneCtrl.text = data.phone;
       _mobileCtrl.text = data.mobile;
+      _faxCtrl.text = data.fax;
       _emailCtrl.text = data.email;
       _websiteCtrl.text = data.website;
+      _noEmpCtrl.text = data.noOfEmployees;
       _addressCtrl.text = data.address;
       _cityCtrl.text = data.city;
       _stateCtrl.text = data.state;
@@ -250,6 +266,88 @@ class _LeadPageState extends State<LeadPage> {
       _descCtrl.text = data.description;
       _isSuspend = data.isSuspend;
     });
+  }
+
+  Future<void> _changeBusiness(String? value) async {
+    setState(() {
+      _isLoading = true;
+      _busCode = value;
+      _ownerUser = null;
+      _lobCode = null;
+      _leadSourceCode = null;
+      _leadStatusCode = null;
+      _allSales = [];
+      _sales = [];
+      _lobs = [];
+      _leadSources = [];
+      _leadStatuses = [];
+    });
+
+    try {
+      await _loadDependentData(setDefaultOwner: true);
+    } catch (e) {
+      if (mounted) {
+        showCrmSnackBar(context, 'Failed to load data: $e', isError: true);
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _clearForm() async {
+    FocusScope.of(context).unfocus();
+    final sessionBusiness =
+        _businesses.any((business) => business.code == _session.busCode)
+        ? _session.busCode
+        : null;
+
+    setState(() {
+      _isLoading = true;
+      _isEditing = false;
+      _leadId = '';
+      _isSuspend = false;
+      _busCode =
+          sessionBusiness ??
+          (_businesses.isNotEmpty ? _businesses.first.code : null);
+      _ownerUser = null;
+      _lobCode = null;
+      _leadSourceCode = null;
+      _leadStatusCode = null;
+      _allSales = [];
+      _sales = [];
+      _lobs = [];
+      _leadSources = [];
+      _leadStatuses = [];
+      for (final controller in [
+        _companyCtrl,
+        _customerCtrl,
+        _phoneCtrl,
+        _mobileCtrl,
+        _faxCtrl,
+        _emailCtrl,
+        _websiteCtrl,
+        _noEmpCtrl,
+        _addressCtrl,
+        _cityCtrl,
+        _stateCtrl,
+        _zipCtrl,
+        _regionCtrl,
+        _descCtrl,
+      ]) {
+        controller.clear();
+      }
+      _formKey.currentState?.reset();
+    });
+
+    try {
+      await _loadDependentData(setDefaultOwner: true);
+    } catch (e) {
+      if (mounted) {
+        showCrmSnackBar(context, 'Failed to load data: $e', isError: true);
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   bool _validationSave() {
@@ -368,7 +466,7 @@ class _LeadPageState extends State<LeadPage> {
       if (mounted) {
         if (result?.status == true) {
           showCrmSnackBar(context, 'Data Successfully Added');
-          widget.onBack?.call();
+          widget.onCompleted?.call();
         } else {
           showCrmSnackBar(context, 'Failed to save the data', isError: true);
         }
@@ -423,13 +521,7 @@ class _LeadPageState extends State<LeadPage> {
                         label: "Business",
                         items: _businesses,
                         value: _busCode,
-                        onChanged: (v) async {
-                          setState(() {
-                            _busCode = v;
-                            _ownerUser = null;
-                          });
-                          await _loadSalesForBusiness(setDefaultOwner: true);
-                        },
+                        onChanged: _changeBusiness,
                       ),
                       CrmDropdownField(
                         label: "Lead Source",
@@ -607,7 +699,6 @@ class _LeadPageState extends State<LeadPage> {
   }
 
   Widget _buildHeader() {
-    final isEdit = widget.editData != null;
     return Row(
       children: [
         Container(
@@ -623,11 +714,13 @@ class _LeadPageState extends State<LeadPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              isEdit ? "Edit Lead" : "Create New Lead",
+              _isEditing ? "Edit Lead" : "Create New Lead",
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             Text(
-              isEdit ? "Update lead details below" : "Fill in the details below",
+              _isEditing
+                  ? "Update lead details below"
+                  : "Fill in the details below",
               style: const TextStyle(color: Colors.grey),
             ),
           ],
@@ -696,6 +789,22 @@ class _LeadPageState extends State<LeadPage> {
                 color: Colors.redAccent,
                 fontWeight: FontWeight.bold,
               ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: OutlinedButton(
+            onPressed: _clearForm,
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              "Clear",
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
         ),

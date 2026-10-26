@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:web/web.dart' as web;
 import '../../../../dao/venus_crm_service.dart';
 import '../../../../shared/utils/pref_manager.dart';
 import '../../../../shared/widgets/app_logo.dart';
@@ -14,6 +16,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   late AnimationController _controller;
   late Animation<double> _animation;
   String _version = 'v1.0.0';
+  String? _error;
+  bool _updateRequired = false;
+  bool _isChecking = true;
   final _crmService = VenusCRMService();
 
   @override
@@ -25,34 +30,48 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     );
     _animation = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
     _controller.forward();
-    
-    _checkLoginStatus();
-    _checkVersion();
+
+    _initialize();
   }
 
-  Future<void> _checkVersion() async {
-    try {
-      final versi = await _crmService.getVersi();
-      if (versi?.versi != null && mounted) {
-        setState(() => _version = 'v${versi!.versi}');
-      }
-    } catch (_) {}
-  }
-
-  Future<void> _checkLoginStatus() async {
-    // Memberikan waktu splash screen tampil (misal 2 detik)
-    await Future.delayed(const Duration(seconds: 2));
-    
-    bool loggedIn = await PrefManager.isLoggedIn();
-    
+  Future<void> _initialize() async {
     if (mounted) {
-      if (loggedIn) {
-        // Jika sudah login, navigasi ke Dashboard (HomeWithDrawer)
-        Navigator.of(context).pushReplacementNamed('/home');
-      } else {
-        // Jika belum login, navigasi ke Login Page
-        Navigator.of(context).pushReplacementNamed('/login');
+      setState(() {
+        _error = null;
+        _updateRequired = false;
+        _isChecking = true;
+      });
+    }
+
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      final localBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
+      final remote = await _crmService.getVersi();
+      if (remote == null || !remote.isValid) {
+        throw const FormatException('Invalid version response');
       }
+
+      if (!mounted) return;
+      setState(() => _version = 'v${remote.versionName}');
+
+      if (remote.isMandatory && remote.versionCode! > localBuild) {
+        setState(() {
+          _updateRequired = true;
+          _isChecking = false;
+        });
+        return;
+      }
+
+      await Future<void>.delayed(const Duration(seconds: 1));
+      final loggedIn = await PrefManager.isLoggedIn();
+      if (!mounted) return;
+      Navigator.of(context).pushReplacementNamed(loggedIn ? '/home' : '/login');
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Unable to connect to Venus CRM. Check your connection.';
+        _isChecking = false;
+      });
     }
   }
 
@@ -95,11 +114,52 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 _version,
                 style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 14),
               ),
-              const SizedBox(height: 60),
-              const CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                strokeWidth: 2,
-              ),
+              const SizedBox(height: 48),
+              if (_isChecking)
+                const CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  strokeWidth: 2,
+                )
+              else
+                Container(
+                  width: 360,
+                  margin: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        _updateRequired ? Icons.system_update_alt_rounded : Icons.cloud_off_rounded,
+                        color: Colors.white,
+                        size: 32,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _updateRequired
+                            ? 'A new version is required to continue.'
+                            : _error ?? 'Unable to continue.',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 16),
+                      FilledButton.icon(
+                        onPressed: _updateRequired
+                            ? () => web.window.location.reload()
+                            : _initialize,
+                        icon: Icon(_updateRequired ? Icons.refresh_rounded : Icons.sync_rounded),
+                        label: Text(_updateRequired ? 'Update Now' : 'Try Again'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: const Color(0xFF1E4CCB),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
             ],
           ),
         ),
