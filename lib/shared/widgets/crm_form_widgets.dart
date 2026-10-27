@@ -61,8 +61,11 @@ class CrmDropdownField extends StatelessWidget {
         child: InputDecorator(
           decoration: InputDecoration(
             labelText: label,
-            prefixIcon: const Icon(Icons.arrow_drop_down_circle_outlined, size: 20),
-             
+            prefixIcon: const Icon(
+              Icons.arrow_drop_down_circle_outlined,
+              size: 20,
+            ),
+
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: Colors.grey.shade200),
@@ -102,7 +105,8 @@ class _SearchableDropdownSheet extends StatefulWidget {
   });
 
   @override
-  State<_SearchableDropdownSheet> createState() => _SearchableDropdownSheetState();
+  State<_SearchableDropdownSheet> createState() =>
+      _SearchableDropdownSheetState();
 }
 
 class _SearchableDropdownSheetState extends State<_SearchableDropdownSheet> {
@@ -133,7 +137,10 @@ class _SearchableDropdownSheetState extends State<_SearchableDropdownSheet> {
     final query = _searchCtrl.text.trim();
     if (widget.onSearch != null) {
       _debounce?.cancel();
-      _debounce = Timer(const Duration(milliseconds: 400), () => _fetchFromApi(query));
+      _debounce = Timer(
+        const Duration(milliseconds: 400),
+        () => _fetchFromApi(query),
+      );
       return;
     }
     setState(() => _displayItems = _filterLocal(query));
@@ -143,9 +150,11 @@ class _SearchableDropdownSheetState extends State<_SearchableDropdownSheet> {
     if (query.isEmpty) return widget.items;
     final lower = query.toLowerCase();
     return widget.items
-        .where((e) =>
-            e.name.toLowerCase().contains(lower) ||
-            e.code.toLowerCase().contains(lower))
+        .where(
+          (e) =>
+              e.name.toLowerCase().contains(lower) ||
+              e.code.toLowerCase().contains(lower),
+        )
         .toList();
   }
 
@@ -173,7 +182,9 @@ class _SearchableDropdownSheetState extends State<_SearchableDropdownSheet> {
     final maxHeight = MediaQuery.of(context).size.height * 0.75;
 
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: SizedBox(
         height: maxHeight,
         child: Column(
@@ -194,7 +205,10 @@ class _SearchableDropdownSheetState extends State<_SearchableDropdownSheet> {
                   Expanded(
                     child: Text(
                       widget.title,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                   IconButton(
@@ -212,7 +226,9 @@ class _SearchableDropdownSheetState extends State<_SearchableDropdownSheet> {
                 decoration: InputDecoration(
                   hintText: 'Search ${widget.title.toLowerCase()}...',
                   prefixIcon: const Icon(Icons.search),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   filled: true,
                   fillColor: Colors.grey.shade50,
                 ),
@@ -244,15 +260,28 @@ class _SearchableDropdownSheetState extends State<_SearchableDropdownSheet> {
                       title: Text(
                         item.name,
                         style: TextStyle(
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                          color: isSelected ? const Color(0xFF1E4CCB) : Colors.black87,
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                          color: isSelected
+                              ? const Color(0xFF1E4CCB)
+                              : Colors.black87,
                         ),
                       ),
                       subtitle: item.code != item.name
-                          ? Text(item.code, style: TextStyle(fontSize: 12, color: Colors.grey.shade600))
+                          ? Text(
+                              item.code,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                              ),
+                            )
                           : null,
                       trailing: isSelected
-                          ? const Icon(Icons.check_circle, color: Color(0xFF1E4CCB))
+                          ? const Icon(
+                              Icons.check_circle,
+                              color: Color(0xFF1E4CCB),
+                            )
                           : null,
                       onTap: () => Navigator.pop(context, item.code),
                     );
@@ -326,7 +355,11 @@ class CrmTextField extends StatelessWidget {
   }
 }
 
-void showCrmSnackBar(BuildContext context, String message, {bool isError = false}) {
+void showCrmSnackBar(
+  BuildContext context,
+  String message, {
+  bool isError = false,
+}) {
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       content: Text(message),
@@ -355,7 +388,10 @@ class CrmSwitchTile extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
+            child: Text(
+              title,
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
           ),
           Switch(
             value: value,

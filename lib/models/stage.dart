@@ -5,16 +5,10 @@ class Stage {
   Stage({this.code, this.name});
 
   factory Stage.fromXml(Map<String, dynamic> xml) {
-    return Stage(
-      code: xml['Code'],
-      name: xml['Name'],
-    );
+    return Stage(code: xml['Code'], name: xml['Name']);
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'Code': code,
-      'Name': name,
-    };
+    return {'Code': code, 'Name': name};
   }
 }

@@ -18,10 +18,22 @@ class DataPotential {
   final String? pref17;
 
   DataPotential({
-    this.pref1, this.pref2, this.pref3, this.pref4,
-    this.pref5, this.pref6, this.pref7, this.pref8,
-    this.pref9, this.pref10, this.pref11, this.pref12,
-    this.pref13, this.pref14, this.pref15, this.pref16,
+    this.pref1,
+    this.pref2,
+    this.pref3,
+    this.pref4,
+    this.pref5,
+    this.pref6,
+    this.pref7,
+    this.pref8,
+    this.pref9,
+    this.pref10,
+    this.pref11,
+    this.pref12,
+    this.pref13,
+    this.pref14,
+    this.pref15,
+    this.pref16,
     this.pref17,
   });
 
@@ -49,10 +61,22 @@ class DataPotential {
 
   Map<String, dynamic> toJson() {
     return {
-      'Pref1': pref1, 'Pref2': pref2, 'Pref3': pref3, 'Pref4': pref4,
-      'Pref5': pref5, 'Pref6': pref6, 'Pref7': pref7, 'Pref8': pref8,
-      'Pref9': pref9, 'Pref10': pref10, 'Pref11': pref11, 'Pref12': pref12,
-      'Pref13': pref13, 'Pref14': pref14, 'Pref15': pref15, 'Pref16': pref16,
+      'Pref1': pref1,
+      'Pref2': pref2,
+      'Pref3': pref3,
+      'Pref4': pref4,
+      'Pref5': pref5,
+      'Pref6': pref6,
+      'Pref7': pref7,
+      'Pref8': pref8,
+      'Pref9': pref9,
+      'Pref10': pref10,
+      'Pref11': pref11,
+      'Pref12': pref12,
+      'Pref13': pref13,
+      'Pref14': pref14,
+      'Pref15': pref15,
+      'Pref16': pref16,
       'Pref17': pref17,
     };
   }

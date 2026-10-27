@@ -7,7 +7,12 @@ class HeaderItem {
   final String name;
   final dynamic img; // Can be a path or a Bitmap/ImageProvider
 
-  HeaderItem({required this.id, required this.nis, required this.name, this.img});
+  HeaderItem({
+    required this.id,
+    required this.nis,
+    required this.name,
+    this.img,
+  });
 }
 
 class CustomHeaderItem extends StatelessWidget {
@@ -32,9 +37,7 @@ class CustomHeaderItem extends StatelessWidget {
                       fit: BoxFit.cover,
                     ),
                   )
-                : const ClipOval(
-                    child: AppLogo(size: 40, fit: BoxFit.cover),
-                  ),
+                : const ClipOval(child: AppLogo(size: 40, fit: BoxFit.cover)),
           ),
           const SizedBox(width: 16),
           Column(
@@ -44,10 +47,7 @@ class CustomHeaderItem extends StatelessWidget {
                 item.name,
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
-              Text(
-                item.nis,
-                style: const TextStyle(color: Colors.grey),
-              ),
+              Text(item.nis, style: const TextStyle(color: Colors.grey)),
             ],
           ),
         ],

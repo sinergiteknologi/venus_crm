@@ -14,9 +14,18 @@ class DataActivity {
   final String? pref13;
 
   DataActivity({
-    this.pref1, this.pref2, this.pref3, this.pref4,
-    this.pref5, this.pref6, this.pref7, this.pref8,
-    this.pref9, this.pref10, this.pref11, this.pref12,
+    this.pref1,
+    this.pref2,
+    this.pref3,
+    this.pref4,
+    this.pref5,
+    this.pref6,
+    this.pref7,
+    this.pref8,
+    this.pref9,
+    this.pref10,
+    this.pref11,
+    this.pref12,
     this.pref13,
   });
 
@@ -40,9 +49,18 @@ class DataActivity {
 
   Map<String, dynamic> toJson() {
     return {
-      'Pref1': pref1, 'Pref2': pref2, 'Pref3': pref3, 'Pref4': pref4,
-      'Pref5': pref5, 'Pref6': pref6, 'Pref7': pref7, 'Pref8': pref8,
-      'Pref9': pref9, 'Pref10': pref10, 'Pref11': pref11, 'Pref12': pref12,
+      'Pref1': pref1,
+      'Pref2': pref2,
+      'Pref3': pref3,
+      'Pref4': pref4,
+      'Pref5': pref5,
+      'Pref6': pref6,
+      'Pref7': pref7,
+      'Pref8': pref8,
+      'Pref9': pref9,
+      'Pref10': pref10,
+      'Pref11': pref11,
+      'Pref12': pref12,
       'Pref13': pref13,
     };
   }

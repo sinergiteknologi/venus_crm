@@ -5,16 +5,10 @@ class MethodPotential {
   MethodPotential({this.code, this.name});
 
   factory MethodPotential.fromXml(Map<String, dynamic> xml) {
-    return MethodPotential(
-      code: xml['Code'],
-      name: xml['Name'],
-    );
+    return MethodPotential(code: xml['Code'], name: xml['Name']);
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'Code': code,
-      'Name': name,
-    };
+    return {'Code': code, 'Name': name};
   }
 }

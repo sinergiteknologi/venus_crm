@@ -8,7 +8,7 @@ import '../../../../shared/utils/pref_manager.dart';
 
 class LoginPage extends StatefulWidget {
   final VoidCallback onLoginSuccess;
-  
+
   const LoginPage({super.key, required this.onLoginSuccess});
 
   @override
@@ -20,10 +20,10 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
   String _version = '';
   final _formKey = GlobalKey<FormState>();
-  
+
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  
+
   final VenusCRMService _crmService = VenusCRMService();
 
   @override
@@ -49,7 +49,7 @@ class _LoginPageState extends State<LoginPage> {
       if (result != null && result.pref1 != null && result.pref1!.isNotEmpty) {
         // Simpan ke SharedPreferences
         await PrefManager.saveLoginData(result);
-        
+
         await PrefManager.savePasswordDigest(_passwordController.text.trim());
 
         widget.onLoginSuccess();
@@ -93,122 +93,143 @@ class _LoginPageState extends State<LoginPage> {
         isLoading: _isLoading,
         child: SafeArea(
           child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 30),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 40),
-                  // Logo Section
-                  Center(
-                    child: AppLogo(
-                      size: 60,
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1E4CCB).withValues(alpha: 0.1),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  const Center(
-                    child: Text(
-                      "Venus CRM",
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E4CCB),
-                        letterSpacing: 1,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Center(
-                    child: Text(
-                      "Manage your business smartly",
-                      style: TextStyle(color: Colors.grey, fontSize: 16),
-                    ),
-                  ),
-                  const SizedBox(height: 50),
-                  
-                  // Username Field
-                  const Text(
-                    "Username",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildTextField(
-                    controller: _usernameController,
-                    hint: "Enter your username",
-                    icon: Icons.person_outline,
-                    validator: (value) => value == null || value.isEmpty ? "Please enter username" : null,
-                  ),
-                  const SizedBox(height: 20),
-                  
-                  // Password Field
-                  const Text(
-                    "Password",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildTextField(
-                    controller: _passwordController,
-                    hint: "Enter your password",
-                    icon: Icons.lock_outline,
-                    isPassword: true,
-                    obscureText: _obscurePassword,
-                    validator: (value) => value == null || value.isEmpty ? "Please enter password" : null,
-                    onTogglePassword: () {
-                      setState(() => _obscurePassword = !_obscurePassword);
-                    },
-                  ),
-                  
-                  const SizedBox(height: 32),
-                  
-                  // Login Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _handleLogin,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1E4CCB),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 30),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 40),
+                    // Logo Section
+                    Center(
+                      child: AppLogo(
+                        size: 60,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E4CCB).withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
                         ),
-                        elevation: 4,
-                        shadowColor: const Color(0xFF1E4CCB).withValues(alpha: 0.4),
                       ),
-                      child: _isLoading 
-                        ? const Text(
-                            "Processing...",
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                          )
-                        : const Text(
-                            "Sign In",
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 32),
+                    const Center(
+                      child: Text(
+                        "Venus CRM",
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E4CCB),
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Center(
+                      child: Text(
+                        "Manage your business smartly",
+                        style: TextStyle(color: Colors.grey, fontSize: 16),
+                      ),
+                    ),
+                    const SizedBox(height: 50),
+
+                    // Username Field
+                    const Text(
+                      "Username",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildTextField(
+                      controller: _usernameController,
+                      hint: "Enter your username",
+                      icon: Icons.person_outline,
+                      validator: (value) => value == null || value.isEmpty
+                          ? "Please enter username"
+                          : null,
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Password Field
+                    const Text(
+                      "Password",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildTextField(
+                      controller: _passwordController,
+                      hint: "Enter your password",
+                      icon: Icons.lock_outline,
+                      isPassword: true,
+                      obscureText: _obscurePassword,
+                      validator: (value) => value == null || value.isEmpty
+                          ? "Please enter password"
+                          : null,
+                      onTogglePassword: () {
+                        setState(() => _obscurePassword = !_obscurePassword);
+                      },
+                    ),
+
+                    const SizedBox(height: 32),
+
+                    // Login Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _handleLogin,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1E4CCB),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
                           ),
+                          elevation: 4,
+                          shadowColor: const Color(
+                            0xFF1E4CCB,
+                          ).withValues(alpha: 0.4),
+                        ),
+                        child: _isLoading
+                            ? const Text(
+                                "Processing...",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              )
+                            : const Text(
+                                "Sign In",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                      ),
                     ),
-                  ),
-                  
-                  const SizedBox(height: 40),
-                  Center(
-                    child: Text(
-                      _version,
-                      style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+
+                    const SizedBox(height: 40),
+                    Center(
+                      child: Text(
+                        _version,
+                        style: TextStyle(
+                          color: Colors.grey.shade400,
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
+                    const SizedBox(height: 20),
+                  ],
+                ),
               ),
             ),
           ),
         ),
       ),
-    )
     );
   }
 
@@ -232,7 +253,9 @@ class _LoginPageState extends State<LoginPage> {
         suffixIcon: isPassword
             ? IconButton(
                 icon: Icon(
-                  obscureText ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                  obscureText
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
                   color: Colors.grey,
                   size: 20,
                 ),
@@ -241,7 +264,10 @@ class _LoginPageState extends State<LoginPage> {
             : null,
         filled: true,
         fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 18,
+          horizontal: 20,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,

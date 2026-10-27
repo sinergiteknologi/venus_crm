@@ -17,14 +17,10 @@ class Versi {
   bool get isValid => versionCode != null && _parts.length >= 2;
 
   factory Versi.fromXml(Map<String, dynamic> xml) {
-    return Versi(
-      versi: xml['Versi'],
-    );
+    return Versi(versi: xml['Versi']);
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'Versi': versi,
-    };
+    return {'Versi': versi};
   }
 }

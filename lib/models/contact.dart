@@ -4,12 +4,7 @@ class Contact {
   final String? pref3;
   final String? pref4;
 
-  Contact({
-    this.pref1,
-    this.pref2,
-    this.pref3,
-    this.pref4,
-  });
+  Contact({this.pref1, this.pref2, this.pref3, this.pref4});
 
   factory Contact.fromXml(Map<String, dynamic> xml) {
     return Contact(
@@ -21,11 +16,6 @@ class Contact {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'Pref1': pref1,
-      'Pref2': pref2,
-      'Pref3': pref3,
-      'Pref4': pref4,
-    };
+    return {'Pref1': pref1, 'Pref2': pref2, 'Pref3': pref3, 'Pref4': pref4};
   }
 }

@@ -12,7 +12,8 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
   String _version = 'v1.0.0';
@@ -114,7 +115,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               const SizedBox(height: 8),
               Text(
                 _version,
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 14),
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  fontSize: 14,
+                ),
               ),
               const SizedBox(height: 48),
               if (_isChecking)
@@ -130,12 +134,16 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.25),
+                    ),
                   ),
                   child: Column(
                     children: [
                       Icon(
-                        _updateRequired ? Icons.system_update_alt_rounded : Icons.cloud_off_rounded,
+                        _updateRequired
+                            ? Icons.system_update_alt_rounded
+                            : Icons.cloud_off_rounded,
                         color: Colors.white,
                         size: 32,
                       ),
@@ -145,7 +153,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                             ? 'A new version is required to continue.'
                             : _error ?? 'Unable to continue.',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       FilledButton.icon(
@@ -154,14 +165,21 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                                 final uri = Uri.base.replace(
                                   queryParameters: {
                                     ...Uri.base.queryParameters,
-                                    'build': '${_requiredBuild ?? DateTime.now().millisecondsSinceEpoch}',
+                                    'build':
+                                        '${_requiredBuild ?? DateTime.now().millisecondsSinceEpoch}',
                                   },
                                 );
                                 web.window.location.replace(uri.toString());
                               }
                             : _initialize,
-                        icon: Icon(_updateRequired ? Icons.refresh_rounded : Icons.sync_rounded),
-                        label: Text(_updateRequired ? 'Update Now' : 'Try Again'),
+                        icon: Icon(
+                          _updateRequired
+                              ? Icons.refresh_rounded
+                              : Icons.sync_rounded,
+                        ),
+                        label: Text(
+                          _updateRequired ? 'Update Now' : 'Try Again',
+                        ),
                         style: FilledButton.styleFrom(
                           backgroundColor: Colors.white,
                           foregroundColor: const Color(0xFF1E4CCB),

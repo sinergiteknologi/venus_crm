@@ -27,7 +27,9 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator(color: Color(0xFF1E4CCB)));
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFF1E4CCB)),
+      );
     }
 
     final login = _session.login;
@@ -38,13 +40,17 @@ class _ProfilePageState extends State<ProfilePage> {
           const CircleAvatar(
             radius: 50,
             backgroundColor: Colors.white,
-            child: ClipOval(
-              child: AppLogo(size: 96, fit: BoxFit.cover),
-            ),
+            child: ClipOval(child: AppLogo(size: 96, fit: BoxFit.cover)),
           ),
           const SizedBox(height: 16),
-          Text(_session.username, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-          Text(_session.salesName, style: TextStyle(color: Colors.grey.shade600)),
+          Text(
+            _session.username,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          Text(
+            _session.salesName,
+            style: TextStyle(color: Colors.grey.shade600),
+          ),
           const SizedBox(height: 32),
           _infoCard("Business", _session.busName),
           _infoCard("Business Code", _session.busCode),
@@ -64,14 +70,30 @@ class _ProfilePageState extends State<ProfilePage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade500, fontWeight: FontWeight.w500)),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade500,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(value.isEmpty ? '-' : value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+          Text(
+            value.isEmpty ? '-' : value,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          ),
         ],
       ),
     );

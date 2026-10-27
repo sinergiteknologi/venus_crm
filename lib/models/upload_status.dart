@@ -10,8 +10,6 @@ class UploadStatus {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'Status': status,
-    };
+    return {'Status': status};
   }
 }

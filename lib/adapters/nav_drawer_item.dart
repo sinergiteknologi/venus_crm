@@ -32,7 +32,7 @@ class NavDrawerItem extends StatelessWidget {
   Widget build(BuildContext context) {
     if (item.isSpinner) {
       // In Flutter, we'd typically use a UserAccountsDrawerHeader or a custom widget for the profile section
-      return const SizedBox.shrink(); 
+      return const SizedBox.shrink();
     }
 
     if (item.title == "Login") {

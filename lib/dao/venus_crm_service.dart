@@ -556,7 +556,7 @@ class VenusCRMService {
     final fault = document?.findAllElements('Fault').firstOrNull;
     if (fault != null) {
       String? valueOf(String name) =>
-          fault!.findAllElements(name).firstOrNull?.innerText;
+          fault.findAllElements(name).firstOrNull?.innerText;
       throw VenusCRMSOAPFaultException(
         faultCode: valueOf('faultcode'),
         faultString: valueOf('faultstring') ?? 'Unknown SOAP fault',

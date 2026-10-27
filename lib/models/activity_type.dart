@@ -3,11 +3,7 @@ class ActivityType {
   final String? pref2;
   final String? pref3;
 
-  ActivityType({
-    this.pref1,
-    this.pref2,
-    this.pref3,
-  });
+  ActivityType({this.pref1, this.pref2, this.pref3});
 
   factory ActivityType.fromXml(Map<String, dynamic> xml) {
     return ActivityType(
@@ -18,10 +14,6 @@ class ActivityType {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'Pref1': pref1,
-      'Pref2': pref2,
-      'Pref3': pref3,
-    };
+    return {'Pref1': pref1, 'Pref2': pref2, 'Pref3': pref3};
   }
 }

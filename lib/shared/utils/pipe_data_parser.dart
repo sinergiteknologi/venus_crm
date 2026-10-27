@@ -18,7 +18,11 @@ class PipeDataParser {
     });
   }
 
-  static List<DropdownOption> parseSales(String? pref1, String? pref2, String? pref3) {
+  static List<DropdownOption> parseSales(
+    String? pref1,
+    String? pref2,
+    String? pref3,
+  ) {
     final codes = split(pref2);
     final names = split(pref3);
     if (codes.isEmpty) return [];
@@ -30,7 +34,11 @@ class PipeDataParser {
     });
   }
 
-  static List<DropdownOption> parseSalesOwners(String? pref1, String? pref2, String? pref3) {
+  static List<DropdownOption> parseSalesOwners(
+    String? pref1,
+    String? pref2,
+    String? pref3,
+  ) {
     final users = split(pref1);
     final names = split(pref3);
     if (names.isEmpty) return [];
@@ -46,10 +54,14 @@ class PipeDataParser {
     return [const DropdownOption(code: '', name: ''), ...items];
   }
 
-  static List<DropdownOption> parseActivityType(String? pref1, String? pref2, String? pref3) {
+  static List<DropdownOption> parseActivityType(
+    String? pref1,
+    String? pref2,
+    String? pref3,
+  ) {
     final codes = split(pref1);
     final names = split(pref2);
-  // pref3 = IsLocationRequired (unused for dropdown label)
+    // pref3 = IsLocationRequired (unused for dropdown label)
     if (codes.isEmpty) return [];
     return List.generate(codes.length, (i) {
       return DropdownOption(
@@ -59,7 +71,10 @@ class PipeDataParser {
     });
   }
 
-  static List<Map<String, String>> parseRows(Map<String, String?> prefs, int columnCount) {
+  static List<Map<String, String>> parseRows(
+    Map<String, String?> prefs,
+    int columnCount,
+  ) {
     final columns = List.generate(
       columnCount,
       (i) => split(prefs['Pref${i + 1}']),
@@ -70,7 +85,9 @@ class PipeDataParser {
       final map = <String, String>{};
       for (var col = 0; col < columnCount; col++) {
         map['Pref${col + 1}'] =
-            col < columns.length && row < columns[col].length ? columns[col][row] : '';
+            col < columns.length && row < columns[col].length
+            ? columns[col][row]
+            : '';
       }
       return map;
     });

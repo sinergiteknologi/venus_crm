@@ -16,11 +16,11 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   final _crmService = VenusCRMService();
   final _session = CrmSession();
   final _formKey = GlobalKey<FormState>();
-  
+
   final _currentPwdCtrl = TextEditingController();
   final _newPwdCtrl = TextEditingController();
   final _confirmPwdCtrl = TextEditingController();
-  
+
   bool _isLoading = false;
   bool _obscureCurrent = true;
   bool _obscureNew = true;
@@ -32,15 +32,20 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     setState(() => _isLoading = true);
     try {
       await _session.load();
-      
-      if (!await PrefManager.verifyPassword(_currentPwdCtrl.text)) {
-        if (mounted) showCrmSnackBar(context, 'Invalid old Password', isError: true);
+
+      final isCurrentPasswordValid = await PrefManager.verifyPassword(
+        _currentPwdCtrl.text,
+      );
+      if (!mounted) return;
+
+      if (!isCurrentPasswordValid) {
+        showCrmSnackBar(context, 'Invalid old Password', isError: true);
         setState(() => _isLoading = false);
         return;
       }
 
       if (_newPwdCtrl.text != _confirmPwdCtrl.text) {
-        if (mounted) showCrmSnackBar(context, 'Invalid New Password', isError: true);
+        showCrmSnackBar(context, 'Invalid New Password', isError: true);
         setState(() => _isLoading = false);
         return;
       }
@@ -53,11 +58,13 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       if (mounted) {
         if (result?.status == true) {
           showCrmSnackBar(context, 'Data successfully saved');
-          
+
           // Java Logic: After save success, redirect to Login
           await PrefManager.clear(); // Clear session
           if (mounted) {
-            Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+            Navigator.of(
+              context,
+            ).pushNamedAndRemoveUntil('/login', (route) => false);
           }
         } else {
           showCrmSnackBar(context, 'Failed to save data', isError: true);
@@ -96,7 +103,13 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 15, offset: const Offset(0, 5))],
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
                 ),
                 child: Column(
                   children: [
@@ -108,15 +121,25 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                         labelText: "Current Password",
                         prefixIcon: const Icon(Icons.lock_open_outlined),
                         suffixIcon: IconButton(
-                          icon: Icon(_obscureCurrent ? Icons.visibility_off : Icons.visibility),
-                          onPressed: () => setState(() => _obscureCurrent = !_obscureCurrent),
+                          icon: Icon(
+                            _obscureCurrent
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                          ),
+                          onPressed: () => setState(
+                            () => _obscureCurrent = !_obscureCurrent,
+                          ),
                         ),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                      validator: (v) => v == null || v.isEmpty ? 'Please fill the blank field' : null,
+                      validator: (v) => v == null || v.isEmpty
+                          ? 'Please fill the blank field'
+                          : null,
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // Field 2: New Password (Java: txtNewPwd)
                     TextFormField(
                       controller: _newPwdCtrl,
@@ -125,15 +148,24 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                         labelText: "New Password",
                         prefixIcon: const Icon(Icons.lock_outline),
                         suffixIcon: IconButton(
-                          icon: Icon(_obscureNew ? Icons.visibility_off : Icons.visibility),
-                          onPressed: () => setState(() => _obscureNew = !_obscureNew),
+                          icon: Icon(
+                            _obscureNew
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                          ),
+                          onPressed: () =>
+                              setState(() => _obscureNew = !_obscureNew),
                         ),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                      validator: (v) => v == null || v.isEmpty ? 'Please fill the blank field' : null,
+                      validator: (v) => v == null || v.isEmpty
+                          ? 'Please fill the blank field'
+                          : null,
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // Field 3: Confirm New Password (Java: txtRetype)
                     TextFormField(
                       controller: _confirmPwdCtrl,
@@ -142,15 +174,25 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                         labelText: "Confirm New Password",
                         prefixIcon: const Icon(Icons.lock_reset_outlined),
                         suffixIcon: IconButton(
-                          icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility),
-                          onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                          icon: Icon(
+                            _obscureConfirm
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                          ),
+                          onPressed: () => setState(
+                            () => _obscureConfirm = !_obscureConfirm,
+                          ),
                         ),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                      validator: (v) => v == null || v.isEmpty ? 'Please fill the blank field' : null,
+                      validator: (v) => v == null || v.isEmpty
+                          ? 'Please fill the blank field'
+                          : null,
                     ),
                     const SizedBox(height: 24),
-                    
+
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -159,10 +201,18 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                           backgroundColor: const Color(0xFF1E4CCB),
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           elevation: 4,
                         ),
-                        child: const Text("Update Password", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        child: const Text(
+                          "Update Password",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -180,15 +230,24 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       children: [
         Container(
           padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(color: Colors.amber.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(
+            color: Colors.amber.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: const Icon(Icons.security_rounded, color: Colors.amber),
         ),
         const SizedBox(width: 16),
         const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Change Password", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            Text("Update your account security", style: TextStyle(color: Colors.grey)),
+            Text(
+              "Change Password",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              "Update your account security",
+              style: TextStyle(color: Colors.grey),
+            ),
           ],
         ),
       ],

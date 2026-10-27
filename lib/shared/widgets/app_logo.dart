@@ -18,19 +18,10 @@ class AppLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final image = Image.asset(
-      assetPath,
-      width: size,
-      height: size,
-      fit: fit,
-    );
+    final image = Image.asset(assetPath, width: size, height: size, fit: fit);
 
     if (decoration == null && padding == null) return image;
 
-    return Container(
-      padding: padding,
-      decoration: decoration,
-      child: image,
-    );
+    return Container(padding: padding, decoration: decoration, child: image);
   }
 }

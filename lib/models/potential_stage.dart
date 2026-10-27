@@ -5,9 +5,7 @@ class PotentialStage {
   final String? pref4;
   final String? pref5;
 
-  PotentialStage({
-    this.pref1, this.pref2, this.pref3, this.pref4, this.pref5,
-  });
+  PotentialStage({this.pref1, this.pref2, this.pref3, this.pref4, this.pref5});
 
   factory PotentialStage.fromXml(Map<String, dynamic> xml) {
     return PotentialStage(
@@ -21,7 +19,11 @@ class PotentialStage {
 
   Map<String, dynamic> toJson() {
     return {
-      'Pref1': pref1, 'Pref2': pref2, 'Pref3': pref3, 'Pref4': pref4, 'Pref5': pref5,
+      'Pref1': pref1,
+      'Pref2': pref2,
+      'Pref3': pref3,
+      'Pref4': pref4,
+      'Pref5': pref5,
     };
   }
 }
