@@ -9,14 +9,17 @@ class MasterDataEnvelope extends BaseVenusCRMEnvelope {
   @override
   String toXml() {
     final params = parameters.entries
-        .map((e) => '<${e.key}>${e.value}</${e.key}>')
+        .map(
+          (entry) =>
+              '<${entry.key}>${BaseVenusCRMEnvelope.escape(entry.value)}</${entry.key}>',
+        )
         .join('\n      ');
     final body = params.isEmpty
         ? '<$methodName xmlns="${BaseVenusCRMEnvelope.namespace}" />'
         : '''<$methodName xmlns="${BaseVenusCRMEnvelope.namespace}">
       $params
     </$methodName>''';
-     
+
     return wrapInEnvelope(body);
   }
 }

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../dao/venus_crm_service.dart';
 import '../../../../shared/utils/crm_session.dart';
 import '../../../../shared/utils/pref_manager.dart';
@@ -34,12 +33,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     try {
       await _session.load();
       
-      // Java Concept: Validation against stored password
-      final prefs = await SharedPreferences.getInstance();
-      // Note: Assuming password was stored in 'user_pwd' during login to match Java logic
-      final storedPwd = prefs.getString('user_pwd') ?? '';
-
-      if (_currentPwdCtrl.text != storedPwd) {
+      if (!await PrefManager.verifyPassword(_currentPwdCtrl.text)) {
         if (mounted) showCrmSnackBar(context, 'Invalid old Password', isError: true);
         setState(() => _isLoading = false);
         return;

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
@@ -8,6 +10,7 @@ import '../models/contact.dart';
 import '../models/potential.dart';
 import '../models/data_lead.dart';
 import '../models/data_contact.dart';
+import '../models/data_contact2.dart';
 import '../models/data_potential.dart';
 import '../models/data_activity.dart';
 import '../models/business.dart';
@@ -26,6 +29,7 @@ import '../envelopes/login_envelope.dart';
 import '../envelopes/lead_envelope.dart';
 import '../envelopes/account_envelope.dart';
 import '../envelopes/contact_envelope.dart';
+import '../envelopes/contact2_envelope.dart';
 import '../envelopes/potential_envelope.dart';
 import '../envelopes/find_envelope.dart';
 import '../envelopes/post_lead_envelope.dart';
@@ -35,9 +39,35 @@ import '../envelopes/post_potential_envelope.dart';
 import '../envelopes/password_envelope.dart';
 import '../envelopes/master_data_envelope.dart';
 
+class VenusCRMHttpException implements Exception {
+  final int statusCode;
+  final String responseBody;
+
+  const VenusCRMHttpException(this.statusCode, this.responseBody);
+
+  @override
+  String toString() => 'VenusCRMHttpException: HTTP $statusCode';
+}
+
+class VenusCRMSOAPFaultException implements Exception {
+  final String? faultCode;
+  final String faultString;
+  final String? detail;
+
+  const VenusCRMSOAPFaultException({
+    required this.faultString,
+    this.faultCode,
+    this.detail,
+  });
+
+  @override
+  String toString() => 'VenusCRMSOAPFaultException: $faultString';
+}
+
 class VenusCRMService {
   static const String _apiUrl =
       'https://implement.sinergiteknologi.co.id/VenusCRMServices/mobileservices.asmx';
+  static const Duration _requestTimeout = Duration(seconds: 30);
 
   String get _requestUrl {
     if (kIsWeb) {
@@ -194,6 +224,32 @@ class VenusCRMService {
         response.body,
         'DataContact',
         (xml) => Contact.fromXml(xml),
+      );
+    }
+    return null;
+  }
+
+  Future<DataContact2?> getContactForAccount(
+    String prmBusCode,
+    String prmUserAuth,
+    String prmAccount,
+    String prmLike,
+  ) async {
+    final envelope = Contact2Envelope(
+      prmBusCode,
+      prmUserAuth,
+      prmAccount,
+      prmLike,
+    );
+    final response = await _postRequest(
+      envelope.toXml(),
+      "http://VenusCRM.org/GetDataContact2",
+    );
+    if (response.statusCode == 200) {
+      return _parseResponse<DataContact2>(
+        response.body,
+        'DataContact2',
+        DataContact2.fromXml,
       );
     }
     return null;
@@ -381,66 +437,59 @@ class VenusCRMService {
     );
   }
 
-  Future<LeadSource?> getLeadSource(String prmBusCode) async {
+  Future<LeadSource?> getLeadSource([String? _]) async {
     return _fetchMaster<LeadSource>(
       'GetDataLeadSource',
       'DataLeadSource',
       (xml) => LeadSource.fromXml(xml),
-      params: {'prmBusCode': prmBusCode},
     );
   }
 
-  Future<LeadStatus?> getLeadStatus(String prmBusCode) async {
+  Future<LeadStatus?> getLeadStatus([String? _]) async {
     return _fetchMaster<LeadStatus>(
       'GetDataLeadStatus',
       'DataLeadStatus',
       (xml) => LeadStatus.fromXml(xml),
-      params: {'prmBusCode': prmBusCode},
     );
   }
 
-  Future<ActivityType?> getActivityType(String prmBusCode) async {
+  Future<ActivityType?> getActivityType([String? _]) async {
     return _fetchMaster<ActivityType>(
       'GetDataActivityType',
       'DataActivityType',
       (xml) => ActivityType.fromXml(xml),
-      params: {'prmBusCode': prmBusCode},
     );
   }
 
-  Future<LOB?> getLOB(String prmBusCode) async {
+  Future<LOB?> getLOB([String? _]) async {
     return _fetchMaster<LOB>(
       'GetDataLOB',
       'DataLOB',
       (xml) => LOB.fromXml(xml),
-      params: {'prmBusCode': prmBusCode},
     );
   }
 
-  Future<Stage?> getStage(String prmBusCode) async {
+  Future<Stage?> getStage([String? _]) async {
     return _fetchMaster<Stage>(
       'GetDataStage',
       'DataStage',
       (xml) => Stage.fromXml(xml),
-      params: {'prmBusCode': prmBusCode},
     );
   }
 
-  Future<Position?> getPosition(String prmBusCode) async {
+  Future<Position?> getPosition([String? _]) async {
     return _fetchMaster<Position>(
       'GetDataPosition',
       'DataPosition',
       (xml) => Position.fromXml(xml),
-      params: {'prmBusCode': prmBusCode},
     );
   }
 
-  Future<MethodPotential?> getMethodPotential(String prmBusCode) async {
+  Future<MethodPotential?> getMethodPotential([String? _]) async {
     return _fetchMaster<MethodPotential>(
       'GetDataMethodPotential',
       'DataMethodPotential',
       (xml) => MethodPotential.fromXml(xml),
-      params: {'prmBusCode': prmBusCode},
     );
   }
 
@@ -482,14 +531,42 @@ class VenusCRMService {
   }
 
   Future<http.Response> _postRequest(String xmlBody, String soapAction) async {
-    return await http.post(
-      Uri.parse(_requestUrl),
-      headers: {
-        "Content-Type": "text/xml; charset=utf-8",
-        "SOAPAction": soapAction,
-      },
-      body: xmlBody,
-    );
+    final response = await http
+        .post(
+          Uri.parse(_requestUrl),
+          headers: {
+            "Content-Type": "text/xml; charset=utf-8",
+            "SOAPAction": soapAction,
+          },
+          body: xmlBody,
+        )
+        .timeout(_requestTimeout);
+    _validateResponse(response);
+    return response;
+  }
+
+  void _validateResponse(http.Response response) {
+    XmlDocument? document;
+    try {
+      document = XmlDocument.parse(response.body);
+    } on XmlParserException {
+      document = null;
+    }
+
+    final fault = document?.findAllElements('Fault').firstOrNull;
+    if (fault != null) {
+      String? valueOf(String name) =>
+          fault!.findAllElements(name).firstOrNull?.innerText;
+      throw VenusCRMSOAPFaultException(
+        faultCode: valueOf('faultcode'),
+        faultString: valueOf('faultstring') ?? 'Unknown SOAP fault',
+        detail: valueOf('detail'),
+      );
+    }
+
+    if (response.statusCode != 200) {
+      throw VenusCRMHttpException(response.statusCode, response.body);
+    }
   }
 
   T? _parseResponse<T>(

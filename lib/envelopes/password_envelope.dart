@@ -8,9 +8,10 @@ class PasswordEnvelope extends BaseVenusCRMEnvelope {
 
   @override
   String toXml() {
-    final body = '''<UploadNewPassword xmlns="${BaseVenusCRMEnvelope.namespace}">
-      <prmUser>$prmUser</prmUser>
-      <prmNewPassword>$prmNewPassword</prmNewPassword>
+    final body =
+        '''<UploadNewPassword xmlns="${BaseVenusCRMEnvelope.namespace}">
+      <prmUser>${BaseVenusCRMEnvelope.escape(prmUser)}</prmUser>
+      <prmNewPassword>${BaseVenusCRMEnvelope.escape(prmNewPassword)}</prmNewPassword>
     </UploadNewPassword>''';
     return wrapInEnvelope(body);
   }

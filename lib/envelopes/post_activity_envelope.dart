@@ -19,33 +19,44 @@ class PostActivityEnvelope extends BaseVenusCRMEnvelope {
   final String prmTaskID;
 
   PostActivityEnvelope({
-    required this.prmLeadID, required this.prmActID, required this.prmContactID,
-    required this.prmPotentialID, required this.prmType, required this.prmSubject,
-    required this.prmDate, required this.prmStatus, required this.prmPriority,
-    required this.prmDesc, required this.prmBusCode, required this.prmActTypeCode,
-    required this.prmCoordinate, required this.prmLocation, required this.prmUser,
+    required this.prmLeadID,
+    required this.prmActID,
+    required this.prmContactID,
+    required this.prmPotentialID,
+    required this.prmType,
+    required this.prmSubject,
+    required this.prmDate,
+    required this.prmStatus,
+    required this.prmPriority,
+    required this.prmDesc,
+    required this.prmBusCode,
+    required this.prmActTypeCode,
+    required this.prmCoordinate,
+    required this.prmLocation,
+    required this.prmUser,
     required this.prmTaskID,
   });
 
   @override
   String toXml() {
-    String body = '''<PostDataActivity xmlns="${BaseVenusCRMEnvelope.namespace}">
-      <prmLeadID>$prmLeadID</prmLeadID>
-      <prmActID>$prmActID</prmActID>
-      <prmContactID>$prmContactID</prmContactID>
-      <prmPotentialID>$prmPotentialID</prmPotentialID>
-      <prmType>$prmType</prmType>
-      <prmSubject>$prmSubject</prmSubject>
-      <prmDate>$prmDate</prmDate>
-      <prmStatus>$prmStatus</prmStatus>
-      <prmPriority>$prmPriority</prmPriority>
-      <prmDesc>$prmDesc</prmDesc>
-      <prmBusCode>$prmBusCode</prmBusCode>
-      <prmActTypeCode>$prmActTypeCode</prmActTypeCode>
-      <prmCoordinate>$prmCoordinate</prmCoordinate>
-      <prmLocation>$prmLocation</prmLocation>
-      <prmUser>$prmUser</prmUser>
-      <prmTaskID>$prmTaskID</prmTaskID>
+    String body =
+        '''<PostDataActivity xmlns="${BaseVenusCRMEnvelope.namespace}">
+      <prmLeadID>${BaseVenusCRMEnvelope.escape(prmLeadID)}</prmLeadID>
+      <prmActID>${BaseVenusCRMEnvelope.escape(prmActID)}</prmActID>
+      <prmContactID>${BaseVenusCRMEnvelope.escape(prmContactID)}</prmContactID>
+      <prmPotentialID>${BaseVenusCRMEnvelope.escape(prmPotentialID)}</prmPotentialID>
+      <prmType>${BaseVenusCRMEnvelope.escape(prmType)}</prmType>
+      <prmSubject>${BaseVenusCRMEnvelope.escape(prmSubject)}</prmSubject>
+      <prmDate>${BaseVenusCRMEnvelope.escape(prmDate)}</prmDate>
+      <prmStatus>${BaseVenusCRMEnvelope.escape(prmStatus)}</prmStatus>
+      <prmPriority>${BaseVenusCRMEnvelope.escape(prmPriority)}</prmPriority>
+      <prmDesc>${BaseVenusCRMEnvelope.escape(prmDesc)}</prmDesc>
+      <prmBusCode>${BaseVenusCRMEnvelope.escape(prmBusCode)}</prmBusCode>
+      <prmActTypeCode>${BaseVenusCRMEnvelope.escape(prmActTypeCode)}</prmActTypeCode>
+      <prmCoordinate>${BaseVenusCRMEnvelope.escape(prmCoordinate)}</prmCoordinate>
+      <prmLocation>${BaseVenusCRMEnvelope.escape(prmLocation)}</prmLocation>
+      <prmUser>${BaseVenusCRMEnvelope.escape(prmUser)}</prmUser>
+      <prmTaskID>${BaseVenusCRMEnvelope.escape(prmTaskID)}</prmTaskID>
     </PostDataActivity>''';
     return wrapInEnvelope(body);
   }

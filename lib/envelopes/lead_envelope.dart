@@ -9,10 +9,11 @@ class LeadEnvelope extends BaseVenusCRMEnvelope {
 
   @override
   String toXml() {
-    String body = '''<GetLead xmlns="${BaseVenusCRMEnvelope.namespace}">
-      <prmBusCode>$prmBusCode</prmBusCode>
-      <prmUserAuth>$prmUserAuth</prmUserAuth>
-      <prmLike>$prmLike</prmLike>
+    String body =
+        '''<GetLead xmlns="${BaseVenusCRMEnvelope.namespace}">
+      <prmBusCode>${BaseVenusCRMEnvelope.escape(prmBusCode)}</prmBusCode>
+      <prmUserAuth>${BaseVenusCRMEnvelope.escape(prmUserAuth)}</prmUserAuth>
+      <prmLike>${BaseVenusCRMEnvelope.escape(prmLike)}</prmLike>
     </GetLead>''';
     return wrapInEnvelope(body);
   }

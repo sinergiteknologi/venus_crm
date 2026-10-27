@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../../../../dao/venus_crm_service.dart';
 import '../../../../models/login.dart';
 import '../../../../shared/widgets/app_logo.dart';
@@ -18,12 +18,21 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   bool _obscurePassword = true;
   bool _isLoading = false;
+  String _version = '';
   final _formKey = GlobalKey<FormState>();
   
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   
   final VenusCRMService _crmService = VenusCRMService();
+
+  @override
+  void initState() {
+    super.initState();
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) setState(() => _version = 'v${info.version}');
+    });
+  }
 
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
@@ -41,9 +50,7 @@ class _LoginPageState extends State<LoginPage> {
         // Simpan ke SharedPreferences
         await PrefManager.saveLoginData(result);
         
-        // Simpan password mentah untuk keperluan validasi Change Password (sesuai legacy logic)
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('user_pwd', _passwordController.text.trim());
+        await PrefManager.savePasswordDigest(_passwordController.text.trim());
 
         widget.onLoginSuccess();
       } else {
@@ -190,7 +197,7 @@ class _LoginPageState extends State<LoginPage> {
                   const SizedBox(height: 40),
                   Center(
                     child: Text(
-                      "v1.0.0",
+                      _version,
                       style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
                     ),
                   ),

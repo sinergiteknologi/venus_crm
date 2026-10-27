@@ -64,7 +64,7 @@ class _ActivityPageState extends State<ActivityPage> {
   String? _busCode;
   String? _actSource = 'Lead';
   String? _actTypeCode;
-  String? _status = 'Planned';
+  String? _status = 'Progress';
   String? _priority = 'Medium';
   String? _linkedId;
 
@@ -80,7 +80,7 @@ class _ActivityPageState extends State<ActivityPage> {
   final _coordinateCtrl = TextEditingController();
 
   static const _actSources = ['Lead', 'Account', 'Contact', 'Potential'];
-  static const _statuses = ['Planned', 'Held', 'Not Held'];
+  static const _statuses = ['Progress', 'Finished'];
   static const _priorities = ['High', 'Medium', 'Low'];
 
   @override
@@ -126,9 +126,7 @@ class _ActivityPageState extends State<ActivityPage> {
               ? '0'
               : editData.taskId.trim();
           _actSource = _sourceForValue(editData.type);
-          _status = _statuses.contains(editData.status)
-              ? editData.status
-              : 'Planned';
+          _status = _statusForValue(editData.status);
           _priority = _priorities.contains(editData.priority)
               ? editData.priority
               : 'Medium';
@@ -180,6 +178,24 @@ class _ActivityPageState extends State<ActivityPage> {
       if (source.toLowerCase() == normalized) return source;
     }
     return 'Lead';
+  }
+
+  String _statusForValue(String value) {
+    switch (value.trim().toLowerCase()) {
+      case 'finished':
+      case 'held':
+      case 'completed':
+      case 'complete':
+      case 'done':
+        return 'Finished';
+      case 'progress':
+      case 'planned':
+      case 'not held':
+      case 'pending':
+      case 'open':
+      default:
+        return 'Progress';
+    }
   }
 
   bool _parseLocationRequired(String value) {
@@ -234,6 +250,7 @@ class _ActivityPageState extends State<ActivityPage> {
       if (permission == LocationPermission.always ||
           permission == LocationPermission.whileInUse) {
         final position = await Geolocator.getCurrentPosition();
+        if (!mounted) return;
         final coordinate = '${position.latitude}, ${position.longitude}';
         _coordinateCtrl.text = coordinate;
 
@@ -242,6 +259,7 @@ class _ActivityPageState extends State<ActivityPage> {
             position.latitude,
             position.longitude,
           );
+          if (!mounted) return;
           if (placemarks.isNotEmpty) {
             final place = placemarks.first;
             _locationCtrl.text =
@@ -250,6 +268,7 @@ class _ActivityPageState extends State<ActivityPage> {
                     .join(', ');
           }
         } catch (_) {
+          if (!mounted) return;
           _locationCtrl.text = coordinate;
         }
       } else {
@@ -524,7 +543,7 @@ class _ActivityPageState extends State<ActivityPage> {
       _actSource = 'Lead';
       _linkedId = null;
       _actTypeCode = null;
-      _status = 'Planned';
+      _status = 'Progress';
       _priority = 'Medium';
       _activityTypes = [];
       _linkedEntities = [];

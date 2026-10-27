@@ -9,10 +9,11 @@ class ContactEnvelope extends BaseVenusCRMEnvelope {
 
   @override
   String toXml() {
-    String body = '''<GetDataContact xmlns="${BaseVenusCRMEnvelope.namespace}">
-      <prmBusCode>$prmBusCode</prmBusCode>
-      <prmUserAuth>$prmUserAuth</prmUserAuth>
-      <prmLike>$prmLike</prmLike>
+    String body =
+        '''<GetDataContact xmlns="${BaseVenusCRMEnvelope.namespace}">
+      <prmBusCode>${BaseVenusCRMEnvelope.escape(prmBusCode)}</prmBusCode>
+      <prmUserAuth>${BaseVenusCRMEnvelope.escape(prmUserAuth)}</prmUserAuth>
+      <prmLike>${BaseVenusCRMEnvelope.escape(prmLike)}</prmLike>
     </GetDataContact>''';
     return wrapInEnvelope(body);
   }

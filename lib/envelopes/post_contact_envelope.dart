@@ -45,26 +45,27 @@ class PostContactEnvelope extends BaseVenusCRMEnvelope {
 
   @override
   String toXml() {
-    final body = '''<PostDataContact xmlns="${BaseVenusCRMEnvelope.namespace}">
-      <prmBusCode>$prmBusCode</prmBusCode>
-      <prmAccountID>$prmAccountID</prmAccountID>
-      <prmLeadSourceCode>$prmLeadSourceCode</prmLeadSourceCode>
-      <prmContactName>$prmContactName</prmContactName>
-      <prmEmail>$prmEmail</prmEmail>
-      <prmPhone>$prmPhone</prmPhone>
-      <prmHomePhone>$prmHomePhone</prmHomePhone>
-      <prmMobilePhone>$prmMobilePhone</prmMobilePhone>
-      <prmFax>$prmFax</prmFax>
-      <prmWebsite>$prmWebsite</prmWebsite>
-      <prmAssistant>$prmAssistant</prmAssistant>
-      <prmAssistantPhone>$prmAssistantPhone</prmAssistantPhone>
-      <prmDateOfBirth>$prmDateOfBirth</prmDateOfBirth>
-      <prmContactOwner>$prmContactOwner</prmContactOwner>
-      <prmPCode>$prmPCode</prmPCode>
-      <prmDescription>$prmDescription</prmDescription>
-      <prmIsSuspend>$prmIsSuspend</prmIsSuspend>
-      <prmUser>$prmUser</prmUser>
-      <prmContactID>$prmContactID</prmContactID>
+    final body =
+        '''<PostDataContact xmlns="${BaseVenusCRMEnvelope.namespace}">
+      <prmBusCode>${BaseVenusCRMEnvelope.escape(prmBusCode)}</prmBusCode>
+      <prmAccountID>${BaseVenusCRMEnvelope.escape(prmAccountID)}</prmAccountID>
+      <prmLeadSourceCode>${BaseVenusCRMEnvelope.escape(prmLeadSourceCode)}</prmLeadSourceCode>
+      <prmContactName>${BaseVenusCRMEnvelope.escape(prmContactName)}</prmContactName>
+      <prmEmail>${BaseVenusCRMEnvelope.escape(prmEmail)}</prmEmail>
+      <prmPhone>${BaseVenusCRMEnvelope.escape(prmPhone)}</prmPhone>
+      <prmHomePhone>${BaseVenusCRMEnvelope.escape(prmHomePhone)}</prmHomePhone>
+      <prmMobilePhone>${BaseVenusCRMEnvelope.escape(prmMobilePhone)}</prmMobilePhone>
+      <prmFax>${BaseVenusCRMEnvelope.escape(prmFax)}</prmFax>
+      <prmWebsite>${BaseVenusCRMEnvelope.escape(prmWebsite)}</prmWebsite>
+      <prmAssistant>${BaseVenusCRMEnvelope.escape(prmAssistant)}</prmAssistant>
+      <prmAssistantPhone>${BaseVenusCRMEnvelope.escape(prmAssistantPhone)}</prmAssistantPhone>
+      <prmDateOfBirth>${BaseVenusCRMEnvelope.escape(prmDateOfBirth)}</prmDateOfBirth>
+      <prmContactOwner>${BaseVenusCRMEnvelope.escape(prmContactOwner)}</prmContactOwner>
+      <prmPCode>${BaseVenusCRMEnvelope.escape(prmPCode)}</prmPCode>
+      <prmDescription>${BaseVenusCRMEnvelope.escape(prmDescription)}</prmDescription>
+      <prmIsSuspend>${BaseVenusCRMEnvelope.escape(prmIsSuspend)}</prmIsSuspend>
+      <prmUser>${BaseVenusCRMEnvelope.escape(prmUser)}</prmUser>
+      <prmContactID>${BaseVenusCRMEnvelope.escape(prmContactID)}</prmContactID>
     </PostDataContact>''';
     return wrapInEnvelope(body);
   }

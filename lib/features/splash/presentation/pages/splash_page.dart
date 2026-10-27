@@ -20,6 +20,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   bool _updateRequired = false;
   bool _isChecking = true;
   final _crmService = VenusCRMService();
+  int? _requiredBuild;
 
   @override
   void initState() {
@@ -57,6 +58,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       if (remote.isMandatory && remote.versionCode! > localBuild) {
         setState(() {
           _updateRequired = true;
+          _requiredBuild = remote.versionCode;
           _isChecking = false;
         });
         return;
@@ -148,7 +150,15 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       const SizedBox(height: 16),
                       FilledButton.icon(
                         onPressed: _updateRequired
-                            ? () => web.window.location.reload()
+                            ? () {
+                                final uri = Uri.base.replace(
+                                  queryParameters: {
+                                    ...Uri.base.queryParameters,
+                                    'build': '${_requiredBuild ?? DateTime.now().millisecondsSinceEpoch}',
+                                  },
+                                );
+                                web.window.location.replace(uri.toString());
+                              }
                             : _initialize,
                         icon: Icon(_updateRequired ? Icons.refresh_rounded : Icons.sync_rounded),
                         label: Text(_updateRequired ? 'Update Now' : 'Try Again'),

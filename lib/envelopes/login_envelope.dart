@@ -8,9 +8,10 @@ class LoginDataEnvelope extends BaseVenusCRMEnvelope {
 
   @override
   String toXml() {
-    String body = '''<GetLogin xmlns="${BaseVenusCRMEnvelope.namespace}">
-      <sUser>$sUser</sUser>
-      <sPwd>$sPwd</sPwd>
+    String body =
+        '''<GetLogin xmlns="${BaseVenusCRMEnvelope.namespace}">
+      <sUser>${BaseVenusCRMEnvelope.escape(sUser)}</sUser>
+      <sPwd>${BaseVenusCRMEnvelope.escape(sPwd)}</sPwd>
     </GetLogin>''';
     return wrapInEnvelope(body);
   }

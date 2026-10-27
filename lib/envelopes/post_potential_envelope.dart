@@ -46,12 +46,7 @@ class PostPotentialEnvelope extends BaseVenusCRMEnvelope {
   });
 
   String _value(String value) {
-    return value
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&apos;');
+    return BaseVenusCRMEnvelope.escape(value);
   }
 
   @override

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../dao/venus_crm_service.dart';
 import '../../../../envelopes/post_potential_envelope.dart';
-import '../../../../models/contact.dart';
+import '../../../../models/data_contact2.dart';
 import '../../../../shared/models/dropdown_option.dart';
 import '../../../../shared/utils/crm_session.dart';
 import '../../../../shared/utils/pipe_data_parser.dart';
@@ -69,6 +69,7 @@ class _PotentialPageState extends State<PotentialPage> {
   final _session = CrmSession();
 
   bool _isLoading = false;
+  int _contactRequestId = 0;
   bool _isSuspend = false;
   String _potentialId = '';
 
@@ -86,6 +87,9 @@ class _PotentialPageState extends State<PotentialPage> {
   List<DropdownOption> _methods = [];
   List<DropdownOption> _stages = [];
   List<DropdownOption> _contacts = [];
+  final Map<String, String> _contactPositions = {};
+  final Map<String, String> _contactDivisions = {};
+  final Map<String, String> _contactPhones = {};
   List<Map<String, String>> _savedContacts = [];
   List<Map<String, String>> _savedStages = [];
   int? _selectedContactRow;
@@ -297,18 +301,26 @@ class _PotentialPageState extends State<PotentialPage> {
   Future<void> _loadContactsForAccount() async {
     if (_busCode == null || _accountCode == null) return;
 
+    final requestId = ++_contactRequestId;
+    final business = _busCode!;
+    final account = _accountCode!;
     setState(() => _isLoading = true);
     try {
-      final accountName = _optionName(_accounts, _accountCode);
-      final result = await _crmService.getContact(
-        _busCode!,
-        _session.userAuth,
+      final result = await _crmService.getContactForAccount(
+        business,
+        _session.username,
+        account,
         '',
       );
-      if (!mounted) return;
+      if (!mounted ||
+          requestId != _contactRequestId ||
+          business != _busCode ||
+          account != _accountCode) {
+        return;
+      }
 
       final contacts = result != null
-          ? _buildContactsForAccount(result, _accountCode!, accountName)
+          ? _buildContactsForAccount(result)
           : <DropdownOption>[];
 
       setState(() {
@@ -327,74 +339,61 @@ class _PotentialPageState extends State<PotentialPage> {
         );
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && requestId == _contactRequestId) {
         showCrmSnackBar(context, 'Failed to load contacts: $e', isError: true);
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted && requestId == _contactRequestId) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   Future<List<DropdownOption>> _searchContactsForAccount(String query) async {
     if (_busCode == null || _accountCode == null) return [];
-    final result = await _crmService.getContact(
-      _busCode!,
-      _session.userAuth,
+    final requestId = ++_contactRequestId;
+    final business = _busCode!;
+    final account = _accountCode!;
+    final result = await _crmService.getContactForAccount(
+      business,
+      _session.username,
+      account,
       query,
     );
-    if (result == null) return [];
-    final accountName = _optionName(_accounts, _accountCode);
-    final contacts = _buildContactsForAccount(
-      result,
-      _accountCode!,
-      accountName,
-    );
-    if (mounted) setState(() => _contacts = contacts);
+    if (!mounted ||
+        requestId != _contactRequestId ||
+        business != _busCode ||
+        account != _accountCode ||
+        result == null) {
+      return [];
+    }
+    final contacts = _buildContactsForAccount(result);
+    setState(() => _contacts = contacts);
     return contacts;
   }
 
-  List<DropdownOption> _buildContactsForAccount(
-    Contact result,
-    String accountCode,
-    String accountName,
-  ) {
-    final accountIds = PipeDataParser.split(result.pref1);
-    final accountNames = PipeDataParser.split(result.pref2);
-    final contactIds = PipeDataParser.split(result.pref3);
-    final contactNames = PipeDataParser.split(result.pref4);
-
-    final normalizedAccountCode = accountCode.trim().toLowerCase();
-    final normalizedAccountName = accountName.trim().toLowerCase();
-
+  List<DropdownOption> _buildContactsForAccount(DataContact2 result) {
+    final contactIds = PipeDataParser.split(result.pref1);
+    final contactNames = PipeDataParser.split(result.pref2);
+    final positions = PipeDataParser.split(result.pref3);
+    final divisions = PipeDataParser.split(result.pref4);
+    final phones = PipeDataParser.split(result.pref5);
     final contacts = <DropdownOption>[];
     final seen = <String>{};
-    final rowCount = contactIds.length;
+    _contactPositions.clear();
+    _contactDivisions.clear();
+    _contactPhones.clear();
 
-    for (var i = 0; i < rowCount; i++) {
-      final rowAccountId = i < accountIds.length ? accountIds[i].trim() : '';
-      final rowAccountName = i < accountNames.length
-          ? accountNames[i].trim()
-          : '';
+    for (var i = 0; i < contactIds.length; i++) {
       final contactId = contactIds[i].trim();
       final contactName = i < contactNames.length
           ? contactNames[i].trim()
           : contactId;
 
-      if (contactId.isEmpty) continue;
-
-      final matchesAccount =
-          rowAccountId.toLowerCase() == normalizedAccountCode ||
-          rowAccountName.toLowerCase() == normalizedAccountName ||
-          rowAccountName.toLowerCase() == normalizedAccountCode ||
-          rowAccountId.toLowerCase() == normalizedAccountName ||
-          (normalizedAccountCode.isNotEmpty &&
-              rowAccountId.toLowerCase().contains(normalizedAccountCode)) ||
-          (normalizedAccountName.isNotEmpty &&
-              rowAccountName.toLowerCase().contains(normalizedAccountName));
-
-      if (!matchesAccount) continue;
-      if (seen.contains(contactId)) continue;
-      seen.add(contactId);
+      if (contactId.isEmpty || !seen.add(contactId)) continue;
+      _contactPositions[contactId] = i < positions.length ? positions[i] : '';
+      _contactDivisions[contactId] = i < divisions.length ? divisions[i] : '';
+      _contactPhones[contactId] = i < phones.length ? phones[i] : '';
 
       contacts.add(DropdownOption(code: contactId, name: contactName));
     }
@@ -406,36 +405,10 @@ class _PotentialPageState extends State<PotentialPage> {
     if (contactId == null) return;
     setState(() {
       _selectedContactId = contactId;
-      _isLoading = true;
+      _contactPositionCtrl.text = _contactPositions[contactId] ?? '';
+      _contactDivisionCtrl.text = _contactDivisions[contactId] ?? '';
+      _contactPhoneCtrl.text = _contactPhones[contactId] ?? '';
     });
-
-    try {
-      final res = await _crmService.getDataContact(
-        _busCode!,
-        _session.userAuth,
-        'ID',
-        contactId,
-        '',
-        '',
-      );
-      if (res != null && mounted) {
-        setState(() {
-          _contactPositionCtrl.text = res.pref5 ?? '';
-          _contactDivisionCtrl.text = res.pref10 ?? '';
-          _contactPhoneCtrl.text = res.pref8 ?? '';
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        showCrmSnackBar(
-          context,
-          'Failed to load contact details: $e',
-          isError: true,
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
   }
 
   Future<void> _selectDate(
@@ -597,10 +570,9 @@ class _PotentialPageState extends State<PotentialPage> {
   String _joinRows(String key, List<Map<String, String>> rows) {
     return rows
         .map(
-          (row) =>
-              key == 'desc'
-                  ? _descriptionValue(row[key] ?? '')
-                  : row[key] ?? '',
+          (row) => key == 'desc'
+              ? _descriptionValue(row[key] ?? '')
+              : row[key] ?? '',
         )
         .join('|');
   }

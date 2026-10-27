@@ -21,13 +21,14 @@ class FindEnvelope extends BaseVenusCRMEnvelope {
 
   @override
   String toXml() {
-    String body = '''<$methodName xmlns="${BaseVenusCRMEnvelope.namespace}">
-      <prmBusCode>$prmBusCode</prmBusCode>
-      <prmUserAuth>$prmUserAuth</prmUserAuth>
-      <prmType>$prmType</prmType>
-      <prmValue>$prmValue</prmValue>
-      <prmDate1>$prmDate1</prmDate1>
-      <prmDate2>$prmDate2</prmDate2>
+    String body =
+        '''<$methodName xmlns="${BaseVenusCRMEnvelope.namespace}">
+      <prmBusCode>${BaseVenusCRMEnvelope.escape(prmBusCode)}</prmBusCode>
+      <prmUserAuth>${BaseVenusCRMEnvelope.escape(prmUserAuth)}</prmUserAuth>
+      <prmType>${BaseVenusCRMEnvelope.escape(prmType)}</prmType>
+      <prmValue>${BaseVenusCRMEnvelope.escape(prmValue)}</prmValue>
+      <prmDate1>${BaseVenusCRMEnvelope.escape(prmDate1)}</prmDate1>
+      <prmDate2>${BaseVenusCRMEnvelope.escape(prmDate2)}</prmDate2>
     </$methodName>''';
     return wrapInEnvelope(body);
   }

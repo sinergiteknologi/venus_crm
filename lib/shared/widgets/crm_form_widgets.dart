@@ -110,6 +110,7 @@ class _SearchableDropdownSheetState extends State<_SearchableDropdownSheet> {
   Timer? _debounce;
   List<DropdownOption> _displayItems = [];
   bool _loading = false;
+  int _requestId = 0;
 
   @override
   void initState() {
@@ -149,14 +150,21 @@ class _SearchableDropdownSheetState extends State<_SearchableDropdownSheet> {
   }
 
   Future<void> _fetchFromApi(String query) async {
+    final requestId = ++_requestId;
     setState(() => _loading = true);
     try {
       final results = await widget.onSearch!(query);
-      if (mounted) setState(() => _displayItems = results);
+      if (mounted && requestId == _requestId) {
+        setState(() => _displayItems = results);
+      }
     } catch (_) {
-      if (mounted) setState(() => _displayItems = []);
+      if (mounted && requestId == _requestId) {
+        setState(() => _displayItems = []);
+      }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && requestId == _requestId) {
+        setState(() => _loading = false);
+      }
     }
   }
 
