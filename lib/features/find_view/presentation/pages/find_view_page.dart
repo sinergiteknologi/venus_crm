@@ -95,13 +95,13 @@ class _FindViewPageState extends State<FindViewPage> {
     });
     try {
       await _session.load();
-      final bus = _session.busCode;
+      final bus = _session.busAuthority;
       final auth = _session.userAuth;
       final val = _valueCtrl.text.trim();
 
       String d1 = _viewType == 'Activity' ? _date1Ctrl.text : "-";
       String d2 = _viewType == 'Activity' && _searchBy != 'All'
-          ? _date2Ctrl.text
+          ? '${_date2Ctrl.text} 23:59:59'
           : "-";
 
       dynamic data;
@@ -150,7 +150,7 @@ class _FindViewPageState extends State<FindViewPage> {
             d1,
             d2,
           );
-          colCount = 13;
+          colCount = 14;
           break;
       }
 
@@ -365,6 +365,11 @@ class _FindViewPageState extends State<FindViewPage> {
 
   String _pref(Map<String, String> row, int index) => row['Pref$index'] ?? '';
 
+  String _editPref(Map<String, String> row, int index) {
+    final value = _pref(row, index);
+    return value.trim() == '-' ? '' : value;
+  }
+
   bool _boolPref(Map<String, String> row, int index) {
     final value = _pref(row, index).trim().toLowerCase();
     return value == '1' || value == 'true' || value == 'yes';
@@ -386,24 +391,24 @@ class _FindViewPageState extends State<FindViewPage> {
           LeadEditData(
             leadId: _pref(row, 1),
             busName: _pref(row, 2),
-            sales: _pref(row, 7),
-            company: _pref(row, 4),
-            lob: _pref(row, 5),
-            leadSource: _pref(row, 6),
-            customer: _pref(row, 3),
-            phone: _pref(row, 8),
-            mobile: _pref(row, 9),
-            fax: _pref(row, 10),
-            email: _pref(row, 11),
-            website: _pref(row, 12),
-            leadStatus: _pref(row, 13),
-            noOfEmployees: _pref(row, 14),
-            address: _pref(row, 15),
-            city: _pref(row, 16),
-            state: _pref(row, 17),
-            zipCode: _pref(row, 18),
-            region: _pref(row, 19),
-            description: _pref(row, 20),
+            sales: _editPref(row, 6),
+            company: _editPref(row, 4),
+            lob: _editPref(row, 5),
+            leadSource: _editPref(row, 12),
+            customer: _editPref(row, 3),
+            phone: _editPref(row, 8),
+            mobile: _editPref(row, 10),
+            fax: _editPref(row, 9),
+            email: _editPref(row, 7),
+            website: _editPref(row, 11),
+            leadStatus: _editPref(row, 13),
+            noOfEmployees: _editPref(row, 14),
+            address: _editPref(row, 15),
+            city: _editPref(row, 16),
+            state: _editPref(row, 17),
+            zipCode: _editPref(row, 18),
+            region: _editPref(row, 19),
+            description: _editPref(row, 20),
             isSuspend: _boolPref(row, 21),
           ),
         );
@@ -413,22 +418,19 @@ class _FindViewPageState extends State<FindViewPage> {
           ContactEditData(
             contactId: _pref(row, 1),
             busName: _pref(row, 2),
-            account: _pref(row, 4),
-            sales: _pref(row, 7),
-            name: _pref(row, 3),
-            phone: _pref(row, 8),
-            mobile: _pref(row, 9),
-            fax: _pref(row, 10),
-            email: _pref(row, 11),
-            homePhone: _pref(row, 12),
-            website: _pref(row, 13),
-            birthDay: _pref(row, 14),
-            assistant: _pref(row, 15),
-            assistantPhone: _pref(row, 16),
-            leadSource: _pref(row, 6),
-            position: _pref(row, 5),
-            description: '',
-            isSuspend: false,
+            account: _editPref(row, 4),
+            sales: _editPref(row, 7),
+            name: _editPref(row, 3),
+            phone: _editPref(row, 8),
+            mobile: _editPref(row, 9),
+            fax: _editPref(row, 10),
+            email: _editPref(row, 11),
+            birthDay: _editPref(row, 12),
+            assistant: _editPref(row, 13),
+            leadSource: _editPref(row, 14),
+            position: _editPref(row, 5),
+            description: _editPref(row, 15),
+            isSuspend: _boolPref(row, 16),
           ),
         );
         break;
@@ -478,6 +480,7 @@ class _FindViewPageState extends State<FindViewPage> {
             sales: _pref(row, 11),
             activityTypeName: _pref(row, 12),
             coordinate: _pref(row, 13),
+            location: _pref(row, 14),
           ),
         );
         break;

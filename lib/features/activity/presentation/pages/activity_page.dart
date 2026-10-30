@@ -9,6 +9,26 @@ import '../../../../shared/utils/pipe_data_parser.dart';
 import '../../../../shared/widgets/crm_form_widgets.dart';
 import '../../../../shared/widgets/loading_overlay.dart';
 
+class _LinkedEntityOption {
+  final String entityId;
+  final String accountId;
+  final String name;
+  final String accountName;
+
+  const _LinkedEntityOption({
+    required this.entityId,
+    required this.accountId,
+    required this.name,
+    this.accountName = '',
+  });
+
+  String get selectionKey =>
+      accountId == entityId ? entityId : '$accountId\u001f$entityId';
+
+  DropdownOption get dropdownOption =>
+      DropdownOption(code: selectionKey, name: name);
+}
+
 class ActivityEditData {
   final String taskId;
   final String type;
@@ -23,6 +43,7 @@ class ActivityEditData {
   final String sales;
   final String activityTypeName;
   final String coordinate;
+  final String location;
 
   const ActivityEditData({
     required this.taskId,
@@ -38,6 +59,7 @@ class ActivityEditData {
     required this.sales,
     required this.activityTypeName,
     required this.coordinate,
+    required this.location,
   });
 }
 
@@ -59,7 +81,7 @@ class _ActivityPageState extends State<ActivityPage> {
 
   bool _isLoading = false;
   int _linkedRequestId = 0;
-  String _taskId = '0';
+  String _taskId = '';
 
   String? _busCode;
   String? _actSource = 'Lead';
@@ -70,7 +92,8 @@ class _ActivityPageState extends State<ActivityPage> {
 
   List<DropdownOption> _businesses = [];
   List<DropdownOption> _activityTypes = [];
-  List<DropdownOption> _linkedEntities = [];
+  List<_LinkedEntityOption> _linkedEntities = [];
+  final Map<String, _LinkedEntityOption> _linkedEntitiesByKey = {};
   Map<String, bool> _locationRequiredMap = {};
 
   final _actDateCtrl = TextEditingController();
@@ -123,7 +146,7 @@ class _ActivityPageState extends State<ActivityPage> {
             (businesses.isNotEmpty ? businesses.first.code : null);
         if (editData != null) {
           _taskId = editData.taskId.trim().isEmpty
-              ? '0'
+              ? ''
               : editData.taskId.trim();
           _actSource = _sourceForValue(editData.type);
           _status = _statusForValue(editData.status);
@@ -134,6 +157,7 @@ class _ActivityPageState extends State<ActivityPage> {
           _actDateCtrl.text = editData.date;
           _descCtrl.text = editData.description;
           _coordinateCtrl.text = editData.coordinate;
+          _locationCtrl.text = editData.location;
         }
       });
 
@@ -283,7 +307,7 @@ class _ActivityPageState extends State<ActivityPage> {
     }
   }
 
-  Future<List<DropdownOption>> _searchLinkedEntities(String query) async {
+  Future<List<_LinkedEntityOption>> _searchLinkedEntities(String query) async {
     final bus = _busCode;
     final source = _actSource;
     if (bus == null || bus.isEmpty || source == null || source.isEmpty) {
@@ -294,19 +318,65 @@ class _ActivityPageState extends State<ActivityPage> {
     switch (source) {
       case 'Lead':
         final result = await _crmService.getLead(bus, auth, query);
-        return PipeDataParser.parseCodeName(result?.pref1, result?.pref2);
+        return _linkedOptions(entityIds: result?.pref1, names: result?.pref2);
       case 'Account':
         final result = await _crmService.getAccount(bus, auth, query, '0');
-        return PipeDataParser.parseCodeName(result?.code, result?.name);
+        return _linkedOptions(
+          entityIds: result?.code,
+          accountIds: result?.code,
+          names: result?.name,
+        );
       case 'Contact':
         final result = await _crmService.getContact(bus, auth, query);
-        return PipeDataParser.parseCodeName(result?.pref3, result?.pref4);
+        return _linkedOptions(
+          entityIds: result?.pref3,
+          accountIds: result?.pref1,
+          names: result?.pref4,
+          accountNames: result?.pref2,
+        );
       case 'Potential':
         final result = await _crmService.getPotential(bus, auth, query);
-        return PipeDataParser.parseCodeName(result?.pref3, result?.pref4);
+        return _linkedOptions(
+          entityIds: result?.pref3,
+          accountIds: result?.pref1,
+          names: result?.pref4,
+          accountNames: result?.pref2,
+        );
       default:
         return [];
     }
+  }
+
+  List<_LinkedEntityOption> _linkedOptions({
+    required String? entityIds,
+    required String? names,
+    String? accountIds,
+    String? accountNames,
+  }) {
+    final ids = PipeDataParser.split(entityIds);
+    final labels = PipeDataParser.split(names);
+    final accounts = PipeDataParser.split(accountIds);
+    final accountLabels = PipeDataParser.split(accountNames);
+
+    return List.generate(ids.length, (index) {
+      final entityId = ids[index];
+      return _LinkedEntityOption(
+        entityId: entityId,
+        accountId: index < accounts.length ? accounts[index] : entityId,
+        name: index < labels.length ? labels[index] : entityId,
+        accountName: index < accountLabels.length ? accountLabels[index] : '',
+      );
+    });
+  }
+
+  Future<List<DropdownOption>> _searchLinkedDropdownOptions(
+    String query,
+  ) async {
+    final results = await _searchLinkedEntities(query);
+    for (final item in results) {
+      _linkedEntitiesByKey[item.selectionKey] = item;
+    }
+    return results.map((item) => item.dropdownOption).toList();
   }
 
   Future<void> _loadLinkedEntities(String query) async {
@@ -320,7 +390,12 @@ class _ActivityPageState extends State<ActivityPage> {
         source != _actSource) {
       return;
     }
-    setState(() => _linkedEntities = results);
+    setState(() {
+      _linkedEntities = results;
+      for (final item in results) {
+        _linkedEntitiesByKey[item.selectionKey] = item;
+      }
+    });
   }
 
   Future<void> _loadEditLinkedEntities(ActivityEditData data) async {
@@ -329,7 +404,7 @@ class _ActivityPageState extends State<ActivityPage> {
       return;
     }
 
-    final existing = List<DropdownOption>.of(_linkedEntities);
+    final existing = List<_LinkedEntityOption>.of(_linkedEntities);
     final requestId = ++_linkedRequestId;
     final business = _busCode;
     final source = _actSource;
@@ -341,37 +416,41 @@ class _ActivityPageState extends State<ActivityPage> {
       return;
     }
 
-    final merged = <String, DropdownOption>{
-      for (final item in existing) item.code: item,
-      for (final item in additional) item.code: item,
+    final merged = <String, _LinkedEntityOption>{
+      for (final item in existing) item.selectionKey: item,
+      for (final item in additional) item.selectionKey: item,
     };
-    setState(() => _linkedEntities = merged.values.toList());
+    setState(() {
+      _linkedEntities = merged.values.toList();
+      _linkedEntitiesByKey.addAll(merged);
+    });
   }
 
   String? _linkedCodeForEdit(ActivityEditData data) {
-    final values = {
-      data.linkedName.trim().toLowerCase(),
-      data.linkedSubName.trim().toLowerCase(),
-    }..remove('');
+    final linkedName = data.linkedName.trim().toLowerCase();
+    final accountName = data.linkedSubName.trim().toLowerCase();
 
     for (final item in _linkedEntities) {
-      if (values.contains(item.code.trim().toLowerCase()) ||
-          values.contains(item.name.trim().toLowerCase())) {
-        return item.code;
+      if (linkedName == item.entityId.trim().toLowerCase() ||
+          linkedName == item.name.trim().toLowerCase()) {
+        return item.selectionKey;
       }
     }
     for (final item in _linkedEntities) {
-      final code = item.code.trim().toLowerCase();
+      final code = item.entityId.trim().toLowerCase();
       final name = item.name.trim().toLowerCase();
-      if (values.any(
-        (value) =>
-            value.isNotEmpty &&
-            (name.contains(value) ||
-                value.contains(name) ||
-                code.contains(value) ||
-                value.contains(code)),
-      )) {
-        return item.code;
+      if (linkedName.isNotEmpty &&
+          (name.contains(linkedName) ||
+              linkedName.contains(name) ||
+              code.contains(linkedName) ||
+              linkedName.contains(code))) {
+        return item.selectionKey;
+      }
+    }
+    for (final item in _linkedEntities) {
+      if (accountName.isNotEmpty &&
+          accountName == item.accountName.trim().toLowerCase()) {
+        return item.selectionKey;
       }
     }
     return null;
@@ -418,6 +497,10 @@ class _ActivityPageState extends State<ActivityPage> {
       showCrmSnackBar(context, 'Activity Type is required', isError: true);
       return false;
     }
+    if (_actDateCtrl.text.trim().isEmpty) {
+      showCrmSnackBar(context, 'Date & Time is required', isError: true);
+      return false;
+    }
     if (_subjectCtrl.text.trim().isEmpty) {
       showCrmSnackBar(context, 'Subject is required', isError: true);
       return false;
@@ -444,13 +527,20 @@ class _ActivityPageState extends State<ActivityPage> {
 
     setState(() => _isLoading = true);
     try {
-      final linkedId = _linkedId!;
+      final linkedEntity = _linkedEntitiesByKey[_linkedId!];
+      if (linkedEntity == null) {
+        showCrmSnackBar(context, 'Linked entity is invalid', isError: true);
+        return;
+      }
       final source = _actSource!;
       final envelope = PostActivityEnvelope(
-        prmLeadID: source == 'Lead' ? linkedId : '',
-        prmActID: source == 'Account' ? linkedId : '',
-        prmContactID: source == 'Contact' ? linkedId : '',
-        prmPotentialID: source == 'Potential' ? linkedId : '',
+        prmLeadID: source == 'Lead' ? linkedEntity.entityId : '',
+        prmActID:
+            source == 'Account' || source == 'Contact' || source == 'Potential'
+            ? linkedEntity.accountId
+            : '',
+        prmContactID: source == 'Contact' ? linkedEntity.entityId : '',
+        prmPotentialID: source == 'Potential' ? linkedEntity.entityId : '',
         prmType: source,
         prmSubject: _subjectCtrl.text.trim(),
         prmDate: _actDateCtrl.text.trim(),
@@ -462,7 +552,7 @@ class _ActivityPageState extends State<ActivityPage> {
         prmCoordinate: _coordinateCtrl.text.trim(),
         prmLocation: _locationCtrl.text.trim(),
         prmUser: _session.username,
-        prmTaskID: _taskId.trim().isEmpty ? '0' : _taskId.trim(),
+        prmTaskID: _taskId.trim(),
       );
 
       final result = await _crmService.postActivity(envelope);
@@ -489,6 +579,7 @@ class _ActivityPageState extends State<ActivityPage> {
       _actTypeCode = null;
       _activityTypes = [];
       _linkedEntities = [];
+      _linkedEntitiesByKey.clear();
       _locationRequiredMap = {};
       _locationCtrl.clear();
       _coordinateCtrl.clear();
@@ -511,6 +602,7 @@ class _ActivityPageState extends State<ActivityPage> {
       _actSource = value;
       _linkedId = null;
       _linkedEntities = [];
+      _linkedEntitiesByKey.clear();
     });
     try {
       await _loadLinkedEntities('');
@@ -534,7 +626,7 @@ class _ActivityPageState extends State<ActivityPage> {
 
     setState(() {
       _isLoading = true;
-      _taskId = '0';
+      _taskId = '';
       _busCode =
           sessionBusiness ??
           (_businesses.isNotEmpty ? _businesses.first.code : null);
@@ -545,13 +637,14 @@ class _ActivityPageState extends State<ActivityPage> {
       _priority = 'Medium';
       _activityTypes = [];
       _linkedEntities = [];
+      _linkedEntitiesByKey.clear();
       _locationRequiredMap = {};
       _subjectCtrl.clear();
       _descCtrl.clear();
       _locationCtrl.clear();
       _coordinateCtrl.clear();
-      _initDateTime();
       _formKey.currentState?.reset();
+      _initDateTime();
     });
 
     try {
@@ -612,10 +705,24 @@ class _ActivityPageState extends State<ActivityPage> {
                     ),
                     CrmDropdownField(
                       label: "Linked $_actSource",
-                      items: _linkedEntities,
+                      items: _linkedEntities
+                          .map((item) => item.dropdownOption)
+                          .toList(),
                       value: _linkedId,
-                      onChanged: (v) => setState(() => _linkedId = v),
-                      onSearch: _searchLinkedEntities,
+                      onChanged: (value) {
+                        setState(() {
+                          _linkedId = value;
+                          final selected = _linkedEntitiesByKey[value];
+                          if (selected != null &&
+                              !_linkedEntities.any(
+                                (item) =>
+                                    item.selectionKey == selected.selectionKey,
+                              )) {
+                            _linkedEntities = [..._linkedEntities, selected];
+                          }
+                        });
+                      },
+                      onSearch: _searchLinkedDropdownOptions,
                       hint: "Search $_actSource...",
                     ),
                     CrmDropdownField(
@@ -642,6 +749,8 @@ class _ActivityPageState extends State<ActivityPage> {
                       controller: _actDateCtrl,
                       readOnly: true,
                       onTap: _selectDateTime,
+                      validator: (v) =>
+                          v == null || v.trim().isEmpty ? 'Required' : null,
                     ),
                     CrmDropdownField(
                       label: "Status",

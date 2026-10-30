@@ -118,7 +118,9 @@ class _LeadPageState extends State<LeadPage> {
     setState(() => _isLoading = true);
     try {
       await _session.load();
-      final businessResult = await _crmService.getBusiness(_session.busCode);
+      final businessResult = await _crmService.getBusiness(
+        _session.busAuthority,
+      );
       final businesses = PipeDataParser.parseCodeName(
         businessResult?.code,
         businessResult?.name,

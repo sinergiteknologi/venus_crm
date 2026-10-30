@@ -36,7 +36,7 @@ class _CalendarActivityPageState extends State<CalendarActivityPage> {
     setState(() => _isLoading = true);
     try {
       await _session.load();
-      final bus = _session.busCode;
+      final bus = _session.busAuthority;
       final auth = _session.userAuth;
 
       final date1 = '${selectedMonth.month}/1/${selectedMonth.year}';

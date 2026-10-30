@@ -52,7 +52,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
       final result = await _crmService.uploadNewPassword(
         _session.username,
-        _newPwdCtrl.text.trim(),
+        _newPwdCtrl.text,
       );
 
       if (mounted) {

@@ -12,6 +12,7 @@ class DataActivity {
   final String? pref11;
   final String? pref12;
   final String? pref13;
+  final String? pref14;
 
   DataActivity({
     this.pref1,
@@ -27,6 +28,7 @@ class DataActivity {
     this.pref11,
     this.pref12,
     this.pref13,
+    this.pref14,
   });
 
   factory DataActivity.fromXml(Map<String, dynamic> xml) {
@@ -44,6 +46,7 @@ class DataActivity {
       pref11: xml['Pref11'],
       pref12: xml['Pref12'],
       pref13: xml['Pref13'],
+      pref14: xml['Pref14'],
     );
   }
 
@@ -62,6 +65,7 @@ class DataActivity {
       'Pref11': pref11,
       'Pref12': pref12,
       'Pref13': pref13,
+      'Pref14': pref14,
     };
   }
 }

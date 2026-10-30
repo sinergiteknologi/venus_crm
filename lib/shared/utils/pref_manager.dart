@@ -72,9 +72,7 @@ class PrefManager {
   }
 
   static bool _isValidLogin(Login login) {
-    return (login.pref1 ?? '').trim().isNotEmpty &&
-        (login.pref3 ?? '').trim().isNotEmpty &&
-        (login.pref8 ?? '').trim().isNotEmpty;
+    return (login.pref1 ?? '').trim().isNotEmpty;
   }
 
   static String _digest(String value) {

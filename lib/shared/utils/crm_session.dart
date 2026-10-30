@@ -18,6 +18,7 @@ class CrmSession {
   String get username => _login?.pref3 ?? '';
   String get salesCode => _login?.pref4 ?? '';
   String get salesName => _login?.pref5 ?? '';
+  String get busAuthority => _login?.pref6 ?? '';
   String get userAuth => _login?.pref8 ?? '';
 
   List<DropdownOption> get businesses =>

@@ -78,6 +78,7 @@ class _PotentialPageState extends State<PotentialPage> {
   String? _accountCode;
   String? _methodCode;
   String? _stageCode;
+  String? _leadSourceCode;
   String? _selectedContactId;
 
   List<DropdownOption> _businesses = [];
@@ -86,6 +87,7 @@ class _PotentialPageState extends State<PotentialPage> {
   List<DropdownOption> _accounts = [];
   List<DropdownOption> _methods = [];
   List<DropdownOption> _stages = [];
+  List<DropdownOption> _leadSources = [];
   List<DropdownOption> _contacts = [];
   final Map<String, String> _contactPositions = {};
   final Map<String, String> _contactDivisions = {};
@@ -164,6 +166,7 @@ class _PotentialPageState extends State<PotentialPage> {
       _crmService.getAccount(bus, _session.userAuth, '', 'POTENTIAL'),
       _crmService.getMethodPotential(bus),
       _crmService.getStage(bus),
+      _crmService.getLeadSource(bus),
     ]);
     if (!mounted) return;
 
@@ -171,6 +174,7 @@ class _PotentialPageState extends State<PotentialPage> {
     final accountResult = results[1] as dynamic;
     final methodResult = results[2] as dynamic;
     final stageResult = results[3] as dynamic;
+    final leadSourceResult = results[4] as dynamic;
     final owners = PipeDataParser.parseSalesOwners(
       salesResult?.pref1,
       salesResult?.pref2,
@@ -191,6 +195,10 @@ class _PotentialPageState extends State<PotentialPage> {
       _stages = PipeDataParser.parseCodeName(
         stageResult?.code,
         stageResult?.name,
+      );
+      _leadSources = PipeDataParser.parseCodeName(
+        leadSourceResult?.code,
+        leadSourceResult?.name,
       );
       if (setDefaultOwner) _setDefaultOwner();
     });
@@ -236,6 +244,7 @@ class _PotentialPageState extends State<PotentialPage> {
           : _codeByName(_accounts, data.accountName);
       _ownerUser = _codeByName(_allSales, data.ownerName);
       _methodCode = _codeByName(_methods, data.methodName);
+      _leadSourceCode = _codeByName(_leadSources, data.leadSource);
       _nameCtrl.text = data.name;
       _closingDateCtrl.text = data.closingDate;
       _amountCtrl.text = data.amount;
@@ -296,16 +305,15 @@ class _PotentialPageState extends State<PotentialPage> {
       _accountCode = null;
       _methodCode = null;
       _stageCode = null;
-      _selectedContactId = null;
-      _selectedContactRow = null;
+      _leadSourceCode = null;
       _selectedStageRow = null;
       _sales = [];
       _allSales = [];
       _accounts = [];
       _methods = [];
       _stages = [];
-      _contacts = [];
-      _savedContacts = [];
+      _leadSources = [];
+      _clearAccountContacts();
       _savedStages = [];
     });
     setState(() => _isLoading = true);
@@ -369,6 +377,21 @@ class _PotentialPageState extends State<PotentialPage> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  void _clearAccountContacts() {
+    ++_contactRequestId;
+    _selectedContactId = null;
+    _selectedContactRow = null;
+    _contacts = [];
+    _savedContacts = [];
+    _contactPositions.clear();
+    _contactDivisions.clear();
+    _contactPhones.clear();
+    _contactPositionCtrl.clear();
+    _contactDivisionCtrl.clear();
+    _contactPhoneCtrl.clear();
+    _contactDescCtrl.clear();
   }
 
   Future<List<DropdownOption>> _searchContactsForAccount(String query) async {
@@ -651,7 +674,7 @@ class _PotentialPageState extends State<PotentialPage> {
         prmActID: _accountCode!,
         prmPotentialName: _nameCtrl.text.trim(),
         prmClosingDate: _closingDateCtrl.text.trim(),
-        prmLeadSourceCode: '',
+        prmLeadSourceCode: _leadSourceCode ?? '',
         prmPotentialOwner: _ownerUser!,
         prmAmount: _amountCtrl.text.trim(),
         prmDescription: _descCtrl.text.trim(),
@@ -688,11 +711,9 @@ class _PotentialPageState extends State<PotentialPage> {
       _accountCode = null;
       _methodCode = null;
       _stageCode = null;
-      _selectedContactId = null;
-      _selectedContactRow = null;
+      _leadSourceCode = null;
       _selectedStageRow = null;
-      _contacts = [];
-      _savedContacts = [];
+      _clearAccountContacts();
       _savedStages = [];
       _isSuspend = false;
       _closingDateCtrl.clear();
@@ -756,8 +777,13 @@ class _PotentialPageState extends State<PotentialPage> {
                     value: _accountCode,
                     onSearch: _searchAccounts,
                     onChanged: (v) {
-                      setState(() => _accountCode = v);
-                      _loadContactsForAccount();
+                      setState(() {
+                        _accountCode = v;
+                        _clearAccountContacts();
+                      });
+                      if (v != null && v.isNotEmpty) {
+                        _loadContactsForAccount();
+                      }
                     },
                   ),
                   CrmDropdownField(

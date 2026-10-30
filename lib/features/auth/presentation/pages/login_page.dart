@@ -41,8 +41,8 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       final Login? result = await _crmService.getLogin(
-        _usernameController.text.trim(),
-        _passwordController.text.trim(),
+        _usernameController.text,
+        _passwordController.text,
       );
 
       // Sesuai contoh XML: Login berhasil jika Pref1 tidak kosong
@@ -50,7 +50,7 @@ class _LoginPageState extends State<LoginPage> {
         // Simpan ke SharedPreferences
         await PrefManager.saveLoginData(result);
 
-        await PrefManager.savePasswordDigest(_passwordController.text.trim());
+        await PrefManager.savePasswordDigest(_passwordController.text);
 
         widget.onLoginSuccess();
       } else {

@@ -17,11 +17,11 @@ class ContactEditData {
   final String mobile;
   final String fax;
   final String email;
-  final String homePhone;
-  final String website;
+  final String? homePhone;
+  final String? website;
   final String birthDay;
   final String assistant;
-  final String assistantPhone;
+  final String? assistantPhone;
   final String leadSource;
   final String position;
   final String description;
@@ -37,11 +37,11 @@ class ContactEditData {
     required this.mobile,
     required this.fax,
     required this.email,
-    this.homePhone = '',
-    this.website = '',
+    this.homePhone,
+    this.website,
     required this.birthDay,
     required this.assistant,
-    this.assistantPhone = '',
+    this.assistantPhone,
     required this.leadSource,
     required this.position,
     required this.description,
@@ -75,6 +75,9 @@ class _ContactPageState extends State<ContactPage> {
   String? _leadSourceCode;
   String? _accountCode;
   String _contactId = '';
+  String? _originalHomePhone;
+  String? _originalWebsite;
+  String? _originalAssistantPhone;
 
   List<DropdownOption> _businesses = [];
   List<DropdownOption> _allSales = [];
@@ -108,7 +111,9 @@ class _ContactPageState extends State<ContactPage> {
     setState(() => _isLoading = true);
     try {
       await _session.load();
-      final businessResult = await _crmService.getBusiness(_session.busCode);
+      final businessResult = await _crmService.getBusiness(
+        _session.busAuthority,
+      );
       final businesses = PipeDataParser.parseCodeName(
         businessResult?.code,
         businessResult?.name,
@@ -250,11 +255,14 @@ class _ContactPageState extends State<ContactPage> {
       _mobileCtrl.text = data.mobile;
       _faxCtrl.text = data.fax;
       _emailCtrl.text = data.email;
-      _homeCtrl.text = data.homePhone;
-      _websiteCtrl.text = data.website;
+      _originalHomePhone = data.homePhone;
+      _originalWebsite = data.website;
+      _originalAssistantPhone = data.assistantPhone;
+      _homeCtrl.text = data.homePhone ?? '';
+      _websiteCtrl.text = data.website ?? '';
       _dobCtrl.text = data.birthDay;
       _assistantCtrl.text = data.assistant;
-      _assistantPhoneCtrl.text = data.assistantPhone;
+      _assistantPhoneCtrl.text = data.assistantPhone ?? '';
       _positionCtrl.text = data.position;
       _descCtrl.text = data.description;
       _isSuspend = data.isSuspend;
@@ -296,6 +304,9 @@ class _ContactPageState extends State<ContactPage> {
       _isLoading = true;
       _isEditing = false;
       _contactId = '';
+      _originalHomePhone = null;
+      _originalWebsite = null;
+      _originalAssistantPhone = null;
       _isSuspend = false;
       _busCode =
           sessionBusiness ??
@@ -455,12 +466,15 @@ class _ContactPageState extends State<ContactPage> {
         prmContactName: _picNameCtrl.text.trim(),
         prmEmail: _emailCtrl.text.trim(),
         prmPhone: _phoneCtrl.text.trim(),
-        prmHomePhone: _homeCtrl.text.trim(),
+        prmHomePhone: _updateValue(_homeCtrl.text, _originalHomePhone),
         prmMobilePhone: _mobileCtrl.text.trim(),
         prmFax: _faxCtrl.text.trim(),
-        prmWebsite: _websiteCtrl.text.trim(),
+        prmWebsite: _updateValue(_websiteCtrl.text, _originalWebsite),
         prmAssistant: _assistantCtrl.text.trim(),
-        prmAssistantPhone: _assistantPhoneCtrl.text.trim(),
+        prmAssistantPhone: _updateValue(
+          _assistantPhoneCtrl.text,
+          _originalAssistantPhone,
+        ),
         prmDateOfBirth: _dobCtrl.text.trim(),
         prmContactOwner: _ownerUser!,
         prmPCode: _positionCtrl.text.trim(),
@@ -484,6 +498,14 @@ class _ContactPageState extends State<ContactPage> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  String _updateValue(String value, String? originalValue) {
+    final trimmed = value.trim();
+    if (!_isEditing || trimmed.isNotEmpty || originalValue != null) {
+      return trimmed;
+    }
+    return '-';
   }
 
   @override
