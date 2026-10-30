@@ -113,7 +113,7 @@ class _PotentialPageState extends State<PotentialPage> {
   @override
   void initState() {
     super.initState();
-    _potentialId = widget.editData?.potentialId ?? '';
+    _potentialId = widget.editData?.potentialId ?? 'New01';
     _isSuspend = widget.editData?.isSuspend ?? false;
     _loadMasterData();
   }
@@ -207,6 +207,20 @@ class _PotentialPageState extends State<PotentialPage> {
     }
   }
 
+  Future<List<DropdownOption>> _searchAccounts(String query) async {
+    final bus = _busCode;
+    if (bus == null || bus.isEmpty) return [];
+    final result = await _crmService.getAccount(
+      bus,
+      _session.userAuth,
+      query,
+      'POTENTIAL',
+    );
+    final accounts = PipeDataParser.parseCodeName(result?.code, result?.name);
+    if (mounted) setState(() => _accounts = accounts);
+    return accounts;
+  }
+
   String? _codeByName(List<DropdownOption> options, String name) {
     for (final option in options) {
       if (option.name == name || option.code == name) return option.code;
@@ -236,6 +250,10 @@ class _PotentialPageState extends State<PotentialPage> {
 
   List<Map<String, String>> _parseContactRecords(String value) {
     return PipeDataParser.split(value)
+        .where((record) {
+          final fields = record.split(';');
+          return fields.isNotEmpty && fields.first == _potentialId;
+        })
         .map((record) {
           final fields = record.split(';');
           return {
@@ -253,6 +271,10 @@ class _PotentialPageState extends State<PotentialPage> {
 
   List<Map<String, String>> _parseStageRecords(String value) {
     return PipeDataParser.split(value)
+        .where((record) {
+          final fields = record.split(';');
+          return fields.isNotEmpty && fields.first == _potentialId;
+        })
         .map((record) {
           final fields = record.split(';');
           return {
@@ -456,7 +478,14 @@ class _PotentialPageState extends State<PotentialPage> {
           _selectedContactRow! < _savedContacts.length) {
         _savedContacts[_selectedContactRow!] = row;
       } else {
-        _savedContacts.add(row);
+        final existingIndex = _savedContacts.indexWhere(
+          (contact) => contact['id'] == row['id'],
+        );
+        if (existingIndex >= 0) {
+          _savedContacts[existingIndex] = row;
+        } else {
+          _savedContacts.add(row);
+        }
       }
       _selectedContactId = null;
       _selectedContactRow = null;
@@ -502,7 +531,14 @@ class _PotentialPageState extends State<PotentialPage> {
           _selectedStageRow! < _savedStages.length) {
         _savedStages[_selectedStageRow!] = row;
       } else {
-        _savedStages.add(row);
+        final existingIndex = _savedStages.indexWhere(
+          (stage) => stage['code'] == row['code'],
+        );
+        if (existingIndex >= 0) {
+          _savedStages[existingIndex] = row;
+        } else {
+          _savedStages.add(row);
+        }
       }
       _stageCode = null;
       _selectedStageRow = null;
@@ -521,6 +557,27 @@ class _PotentialPageState extends State<PotentialPage> {
     setState(() {
       _savedStages.removeAt(_selectedStageRow!);
       _selectedStageRow = null;
+    });
+  }
+
+  void _deleteSavedRow({required bool isContact, required int index}) {
+    setState(() {
+      if (isContact) {
+        _savedContacts.removeAt(index);
+        _selectedContactRow = null;
+        _selectedContactId = null;
+        _contactPositionCtrl.clear();
+        _contactDivisionCtrl.clear();
+        _contactPhoneCtrl.clear();
+        _contactDescCtrl.clear();
+      } else {
+        _savedStages.removeAt(index);
+        _selectedStageRow = null;
+        _stageCode = null;
+        _startDateCtrl.clear();
+        _finishDateCtrl.clear();
+        _stageDescCtrl.clear();
+      }
     });
   }
 
@@ -583,8 +640,13 @@ class _PotentialPageState extends State<PotentialPage> {
 
     setState(() => _isLoading = true);
     try {
+      final stages = [
+        ..._savedStages,
+      ]..sort((a, b) => (a['startDate'] ?? '').compareTo(b['startDate'] ?? ''));
+      final contacts = [..._savedContacts]
+        ..sort((a, b) => (a['name'] ?? '').compareTo(b['name'] ?? ''));
       final envelope = PostPotentialEnvelope(
-        prmPotentialID: _potentialId,
+        prmPotentialID: _potentialId.isEmpty ? 'New01' : _potentialId,
         prmBusCode: _busCode!,
         prmActID: _accountCode!,
         prmPotentialName: _nameCtrl.text.trim(),
@@ -592,15 +654,15 @@ class _PotentialPageState extends State<PotentialPage> {
         prmLeadSourceCode: '',
         prmPotentialOwner: _ownerUser!,
         prmAmount: _amountCtrl.text.trim(),
-        prmDescription: _descriptionValue(_descCtrl.text),
+        prmDescription: _descCtrl.text.trim(),
         prmIsSuspend: _isSuspend ? '1' : '0',
-        prmStageCode: _joinRows('code', _savedStages),
-        prmStageName: _joinRows('name', _savedStages),
-        prmStartDate: _joinRows('startDate', _savedStages),
-        prmFinishedDate: _joinRows('finishDate', _savedStages),
-        prmStageDesc: _joinRows('desc', _savedStages),
-        prmContactCode: _joinRows('id', _savedContacts),
-        prmContactDescription: _joinRows('desc', _savedContacts),
+        prmStageCode: _joinRows('code', stages),
+        prmStageName: _joinRows('name', stages),
+        prmStartDate: _joinRows('startDate', stages),
+        prmFinishedDate: _joinRows('finishDate', stages),
+        prmStageDesc: _joinRows('desc', stages),
+        prmContactCode: _joinRows('id', contacts),
+        prmContactDescription: _joinRows('desc', contacts),
         prmUser: _session.username,
         prmMethodCode: _methodCode ?? '',
         prmLocation: _locationCtrl.text.trim(),
@@ -622,7 +684,7 @@ class _PotentialPageState extends State<PotentialPage> {
 
   void _clear() {
     setState(() {
-      _potentialId = '';
+      _potentialId = 'New01';
       _accountCode = null;
       _methodCode = null;
       _stageCode = null;
@@ -692,6 +754,7 @@ class _PotentialPageState extends State<PotentialPage> {
                     label: "Account",
                     items: _accounts,
                     value: _accountCode,
+                    onSearch: _searchAccounts,
                     onChanged: (v) {
                       setState(() => _accountCode = v);
                       _loadContactsForAccount();
@@ -974,8 +1037,8 @@ class _PotentialPageState extends State<PotentialPage> {
     }
 
     final columns = isContact
-        ? ['Name', 'Position', 'Division', 'Phone', 'Desc']
-        : ['Stage Name', 'Start Date', 'Finish Date', 'Desc'];
+        ? ['Name', 'Position', 'Division', 'Phone', 'Desc', 'Action']
+        : ['Stage Name', 'Start Date', 'Finish Date', 'Desc', 'Action'];
 
     return Container(
       decoration: BoxDecoration(
@@ -1050,6 +1113,20 @@ class _PotentialPageState extends State<PotentialPage> {
                       Text(text, style: const TextStyle(fontSize: 12)),
                     ),
                   )
+                  .followedBy([
+                    DataCell(
+                      IconButton(
+                        tooltip: 'Delete $type',
+                        onPressed: () =>
+                            _deleteSavedRow(isContact: isContact, index: index),
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                          color: Colors.redAccent,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ])
                   .toList(),
             );
           }),

@@ -138,9 +138,7 @@ class _ActivityPageState extends State<ActivityPage> {
       });
 
       await _loadActivityTypes();
-      if (editData == null) {
-        await _loadLinkedEntities('');
-      } else {
+      if (editData != null) {
         await _loadEditLinkedEntities(editData);
         if (!mounted) return;
         setState(() {

@@ -41,6 +41,8 @@ class _FindViewPageState extends State<FindViewPage> {
   String _searchBy = 'All';
   List<Map<String, String>> _results = [];
   List<String> _columns = [];
+  String _potentialContactRecords = '';
+  String _potentialStageRecords = '';
 
   static const _viewTypes = ['Lead', 'Contact', 'Potential', 'Activity'];
 
@@ -155,6 +157,10 @@ class _FindViewPageState extends State<FindViewPage> {
       if (mounted && data != null) {
         final Map<String, String?> prefs = {};
         final json = data.toJson();
+        if (_viewType == 'Potential') {
+          _potentialContactRecords = json['Pref16']?.toString() ?? '';
+          _potentialStageRecords = json['Pref17']?.toString() ?? '';
+        }
         for (int i = 1; i <= colCount; i++) {
           prefs['Pref$i'] = json['Pref$i']?.toString();
         }
@@ -364,6 +370,15 @@ class _FindViewPageState extends State<FindViewPage> {
     return value == '1' || value == 'true' || value == 'yes';
   }
 
+  String _potentialDetailsFor(String source, String potentialId) {
+    return PipeDataParser.split(source)
+        .where((record) {
+          final fields = record.split(';');
+          return fields.isNotEmpty && fields.first == potentialId;
+        })
+        .join('|');
+  }
+
   void _selectResult(Map<String, String> row) {
     switch (_viewType) {
       case 'Lead':
@@ -418,9 +433,10 @@ class _FindViewPageState extends State<FindViewPage> {
         );
         break;
       case 'Potential':
+        final potentialId = _pref(row, 1);
         widget.onPotentialSelected(
           PotentialEditData(
-            potentialId: _pref(row, 1),
+            potentialId: potentialId,
             businessName: _pref(row, 2),
             accountName: _pref(row, 3),
             name: _pref(row, 4),
@@ -435,8 +451,14 @@ class _FindViewPageState extends State<FindViewPage> {
             description: _pref(row, 13),
             isSuspend: _boolPref(row, 14),
             accountCode: _pref(row, 15),
-            contactRecords: _pref(row, 16),
-            stageRecords: _pref(row, 17),
+            contactRecords: _potentialDetailsFor(
+              _potentialContactRecords,
+              potentialId,
+            ),
+            stageRecords: _potentialDetailsFor(
+              _potentialStageRecords,
+              potentialId,
+            ),
           ),
         );
         break;
