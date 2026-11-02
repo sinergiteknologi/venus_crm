@@ -123,7 +123,9 @@ class _ActivityPageState extends State<ActivityPage> {
     setState(() => _isLoading = true);
     try {
       await _session.load();
-      final businessResult = await _crmService.getBusiness(_session.busCode);
+      final businessResult = await _crmService.getBusiness(
+        _session.busAuthority,
+      );
       final businesses = PipeDataParser.parseCodeName(
         businessResult?.code,
         businessResult?.name,
@@ -587,7 +589,6 @@ class _ActivityPageState extends State<ActivityPage> {
 
     try {
       await _loadActivityTypes();
-      await _loadLinkedEntities('');
     } catch (e) {
       if (mounted) {
         showCrmSnackBar(context, 'Failed to load data: $e', isError: true);
@@ -597,24 +598,13 @@ class _ActivityPageState extends State<ActivityPage> {
     }
   }
 
-  Future<void> _changeSource(String? value) async {
+  void _changeSource(String? value) {
     setState(() {
       _actSource = value;
       _linkedId = null;
       _linkedEntities = [];
       _linkedEntitiesByKey.clear();
     });
-    try {
-      await _loadLinkedEntities('');
-    } catch (e) {
-      if (mounted) {
-        showCrmSnackBar(
-          context,
-          'Failed to load linked entities: $e',
-          isError: true,
-        );
-      }
-    }
   }
 
   Future<void> _clearForm() async {
@@ -649,7 +639,6 @@ class _ActivityPageState extends State<ActivityPage> {
 
     try {
       await _loadActivityTypes();
-      await _loadLinkedEntities('');
     } catch (e) {
       if (mounted) {
         showCrmSnackBar(context, 'Failed to load data: $e', isError: true);
