@@ -277,6 +277,7 @@ class _ActivityPageState extends State<ActivityPage> {
         if (!mounted) return;
         final coordinate = '${position.latitude}, ${position.longitude}';
         _coordinateCtrl.text = coordinate;
+        _locationCtrl.clear();
 
         try {
           final placemarks = await placemarkFromCoordinates(
@@ -286,14 +287,29 @@ class _ActivityPageState extends State<ActivityPage> {
           if (!mounted) return;
           if (placemarks.isNotEmpty) {
             final place = placemarks.first;
-            _locationCtrl.text =
-                [place.street, place.subLocality, place.locality, place.country]
-                    .where((part) => part != null && part.trim().isNotEmpty)
-                    .join(', ');
+            final addressParts = <String>{};
+            for (final part in [
+              place.name,
+              place.street,
+              place.subLocality,
+              place.locality,
+              place.subAdministrativeArea,
+              place.administrativeArea,
+              place.postalCode,
+              place.country,
+            ]) {
+              final value = part?.trim() ?? '';
+              if (value.isNotEmpty) addressParts.add(value);
+            }
+            _locationCtrl.text = addressParts.join(', ');
           }
         } catch (_) {
           if (!mounted) return;
-          _locationCtrl.text = coordinate;
+          showCrmSnackBar(
+            context,
+            'Unable to retrieve the location name. Please try again.',
+            isError: true,
+          );
         }
       } else {
         if (mounted) {
@@ -516,6 +532,15 @@ class _ActivityPageState extends State<ActivityPage> {
       showCrmSnackBar(
         context,
         'Invalid current location. GPS is required for this activity type.',
+        isError: true,
+      );
+      return false;
+    }
+    if ((_locationRequiredMap[_actTypeCode] ?? false) &&
+        _locationCtrl.text.trim().isEmpty) {
+      showCrmSnackBar(
+        context,
+        'Location name is required for this activity type.',
         isError: true,
       );
       return false;

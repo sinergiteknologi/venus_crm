@@ -123,7 +123,7 @@ class VenusCRMService {
     final envelope = LeadEnvelope(prmBusCode, prmUserAuth, prmLike);
     final response = await _postRequest(
       envelope.toXml(),
-      "http://VenusCRM.org/GetLead",
+      "http://VenusCRM.org/GetDataLead",
     );
     if (response.statusCode == 200) {
       return _parseResponse<Lead>(
