@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
@@ -292,8 +294,33 @@ class _ActivityPageState extends State<ActivityPage> {
         false;
   }
 
+  Future<void> _showLocationErrorDialog(String message) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Lokasi Tidak Tersedia'),
+        content: Text(message),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _getCurrentLocation() async {
     try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        await _showLocationErrorDialog(
+          'Aktifkan layanan lokasi atau GPS pada perangkat, lalu coba kembali.',
+        );
+        return;
+      }
+
       var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         final allowRequest = await _showLocationPermissionDialog();
@@ -312,7 +339,21 @@ class _ActivityPageState extends State<ActivityPage> {
       if (permission == LocationPermission.always ||
           permission == LocationPermission.whileInUse) {
         if (mounted) setState(() => _isLoading = true);
-        final position = await Geolocator.getCurrentPosition();
+        Position? position;
+        try {
+          position = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.high,
+            timeLimit: const Duration(seconds: 20),
+          );
+        } on TimeoutException {
+          position = await Geolocator.getLastKnownPosition();
+        }
+        if (position == null) {
+          await _showLocationErrorDialog(
+            'Posisi belum dapat ditemukan. Pastikan GPS aktif dan coba kembali.',
+          );
+          return;
+        }
         if (!mounted) return;
         final coordinate = '${position.latitude}, ${position.longitude}';
         _coordinateCtrl.text = coordinate;
@@ -351,14 +392,22 @@ class _ActivityPageState extends State<ActivityPage> {
           );
         }
       } else {
-        if (mounted) {
-          showCrmSnackBar(context, 'Location permission denied', isError: true);
-        }
+        await _showLocationErrorDialog(
+          'Izin lokasi ditolak. Izinkan akses lokasi untuk mengisi koordinat dan alamat secara otomatis.',
+        );
       }
-    } catch (e) {
-      if (mounted) {
-        showCrmSnackBar(context, 'Error getting location: $e', isError: true);
-      }
+    } on PermissionDeniedException {
+      await _showLocationErrorDialog(
+        'Izin lokasi ditolak. Aktifkan izin lokasi, lalu coba kembali.',
+      );
+    } on LocationServiceDisabledException {
+      await _showLocationErrorDialog(
+        'Layanan lokasi atau GPS tidak aktif. Aktifkan lokasi, lalu coba kembali.',
+      );
+    } catch (_) {
+      await _showLocationErrorDialog(
+        'Lokasi tidak dapat diambil. Pastikan izin lokasi aktif dan aplikasi dibuka melalui koneksi HTTPS.',
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
