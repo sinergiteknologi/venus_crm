@@ -66,7 +66,7 @@ class VenusCRMSOAPFaultException implements Exception {
 
 class VenusCRMService {
   static const String _apiUrl =
-      'https://implement.sinergiteknologi.co.id/VenusCRMServices/mobileservices.asmx';
+      'https://production2.sinergiteknologi.co.id/VenusCRMServices/mobileservices.asmx';
   static const Duration _requestTimeout = Duration(seconds: 30);
 
   String get _requestUrl {
