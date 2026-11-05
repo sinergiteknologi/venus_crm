@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:http/http.dart' as http;
 import '../../../../dao/venus_crm_service.dart';
 import '../../../../envelopes/post_activity_envelope.dart';
 import '../../../../shared/models/dropdown_option.dart';
@@ -311,6 +314,64 @@ class _ActivityPageState extends State<ActivityPage> {
     );
   }
 
+  Future<String> _getLocationName(Position position) async {
+    if (kIsWeb) {
+      final uri =
+          Uri.https('api.bigdatacloud.net', '/data/reverse-geocode-client', {
+            'latitude': position.latitude.toString(),
+            'longitude': position.longitude.toString(),
+            'localityLanguage': 'id',
+          });
+      final response = await http.get(uri).timeout(const Duration(seconds: 15));
+      if (response.statusCode != 200) {
+        throw StateError('Reverse geocoding failed');
+      }
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final addressParts = <String>{};
+      for (final key in [
+        'locality',
+        'city',
+        'principalSubdivision',
+        'postcode',
+        'countryName',
+      ]) {
+        final value = data[key]?.toString().trim() ?? '';
+        if (value.isNotEmpty) addressParts.add(value);
+      }
+      if (addressParts.isEmpty) {
+        throw StateError('Location name is empty');
+      }
+      return addressParts.join(', ');
+    }
+
+    final placemarks = await placemarkFromCoordinates(
+      position.latitude,
+      position.longitude,
+    );
+    if (placemarks.isEmpty) {
+      throw StateError('Location name is empty');
+    }
+    final place = placemarks.first;
+    final addressParts = <String>{};
+    for (final part in [
+      place.name,
+      place.street,
+      place.subLocality,
+      place.locality,
+      place.subAdministrativeArea,
+      place.administrativeArea,
+      place.postalCode,
+      place.country,
+    ]) {
+      final value = part?.trim() ?? '';
+      if (value.isNotEmpty) addressParts.add(value);
+    }
+    if (addressParts.isEmpty) {
+      throw StateError('Location name is empty');
+    }
+    return addressParts.join(', ');
+  }
+
   Future<void> _getCurrentLocation() async {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -360,34 +421,14 @@ class _ActivityPageState extends State<ActivityPage> {
         _locationCtrl.clear();
 
         try {
-          final placemarks = await placemarkFromCoordinates(
-            position.latitude,
-            position.longitude,
-          );
+          final locationName = await _getLocationName(position);
           if (!mounted) return;
-          if (placemarks.isNotEmpty) {
-            final place = placemarks.first;
-            final addressParts = <String>{};
-            for (final part in [
-              place.name,
-              place.street,
-              place.subLocality,
-              place.locality,
-              place.subAdministrativeArea,
-              place.administrativeArea,
-              place.postalCode,
-              place.country,
-            ]) {
-              final value = part?.trim() ?? '';
-              if (value.isNotEmpty) addressParts.add(value);
-            }
-            _locationCtrl.text = addressParts.join(', ');
-          }
+          _locationCtrl.text = locationName;
         } catch (_) {
           if (!mounted) return;
           showCrmSnackBar(
             context,
-            'Unable to retrieve the location name. Please try again.',
+            'Nama lokasi tidak dapat diambil otomatis. Silakan isi alamat lokasi secara manual.',
             isError: true,
           );
         }
@@ -888,7 +929,6 @@ class _ActivityPageState extends State<ActivityPage> {
                       label: "Location Address",
                       icon: Icons.location_on_outlined,
                       controller: _locationCtrl,
-                      readOnly: isLocationRequired,
                       maxLines: 2,
                     ),
                   ],
