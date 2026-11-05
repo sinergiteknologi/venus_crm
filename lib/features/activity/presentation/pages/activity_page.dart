@@ -263,16 +263,55 @@ class _ActivityPageState extends State<ActivityPage> {
     });
   }
 
+  Future<bool> _showLocationPermissionDialog({
+    bool openSettings = false,
+  }) async {
+    if (!mounted) return false;
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Izin Lokasi'),
+            content: Text(
+              openSettings
+                  ? 'Izin lokasi dinonaktifkan. Buka pengaturan aplikasi untuk mengaktifkannya.'
+                  : 'Venus CRM memerlukan izin lokasi untuk mengisi koordinat dan alamat lokasi secara otomatis.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Batal'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: Text(openSettings ? 'Buka Pengaturan' : 'Izinkan'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
   Future<void> _getCurrentLocation() async {
-    setState(() => _isLoading = true);
     try {
       var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
+        final allowRequest = await _showLocationPermissionDialog();
+        if (!allowRequest) return;
         permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        final openSettings = await _showLocationPermissionDialog(
+          openSettings: true,
+        );
+        if (openSettings) await Geolocator.openAppSettings();
+        return;
       }
 
       if (permission == LocationPermission.always ||
           permission == LocationPermission.whileInUse) {
+        if (mounted) setState(() => _isLoading = true);
         final position = await Geolocator.getCurrentPosition();
         if (!mounted) return;
         final coordinate = '${position.latitude}, ${position.longitude}';
@@ -745,9 +784,7 @@ class _ActivityPageState extends State<ActivityPage> {
                       value: _actTypeCode,
                       onChanged: (v) {
                         setState(() => _actTypeCode = v);
-                        if (_locationRequiredMap[v] == true) {
-                          _getCurrentLocation();
-                        }
+                        _getCurrentLocation();
                       },
                     ),
                     CrmTextField(
