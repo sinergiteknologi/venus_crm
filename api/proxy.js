@@ -1,5 +1,5 @@
 const API_URL =
-  'https://implement.sinergiteknologi.co.id/VenusCRMServices/mobileservices.asmx';
+  'https://production2.sinergiteknologi.co.id/VenusCRMServices/mobileservices.asmx';
 
 function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
